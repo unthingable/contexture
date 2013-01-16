@@ -35,8 +35,57 @@ class _dummy_obj:
 
 # to be used by itself _and_ extended
 class LoggingContext(object):
+    '''
+    Reserved members:
+        context
+        log
+        update
+    '''
     # LoggingContext is not created often, so we can afford
     # to be a little expensive
+
+    class LogProxy(object):
+        def __init__(self, ctx):
+            self.ctx = ctx
+
+    # Create LogProxy logging methods
+    for level_name in ('info',
+                       'debug',
+                       'warning',
+                       'warn',
+                       'error',
+                       'fatal',
+                       'critical'):
+        level = getattr(logging, level_name.upper())
+
+        def closure(level, name):
+            def log_func(lp, *msg, **kw):
+                return lp.ctx._update(msg=msg, level=level, context=kw)
+            log_func.func_name = name
+            return log_func
+
+        setattr(LogProxy, level_name, closure(level, level_name))
+
+        # def debug(self, *msg, **kw):
+        #     return self.ctx._update(msg=msg, level=logging.DEBUG, context=kw)
+
+        # def info(self, *msg, **kw):
+        #     return self.ctx._update(msg=msg, level=logging.INFO, context=kw)
+
+        # def warn(self, *msg, **kw):
+        #     return self.ctx._update(msg=msg, level=logging.WARN, context=kw)
+
+        # def warning(self, *msg, **kw):
+        #     return self.ctx._update(*msg, level=logging.WARNING, context=kw)
+
+        # def error(self, *msg, **kw):
+        #     return self.ctx._update(*msg, level=logging.ERROR, context=kw)
+
+        # def fatal(self, *msg, **kw):
+        #     return self.ctx._update(*msg, level=logging.FATAL, context=kw)
+
+        # def critical(self, *msg, **kw):
+        #     return self.ctx._update(*msg, level=logging.CRITICAL, context=kw)
 
     def __init__(self, name=None, context={}, heartbeat=None, logger=None):
         self.context = {}
@@ -51,6 +100,9 @@ class LoggingContext(object):
 
 #        self.__.queue = deque()
 #        self.terminate = False
+
+        # Construct the log proxy
+        self.log = self.LogProxy(self)
 
         self.update(status="born", **context)
 
@@ -78,40 +130,23 @@ class LoggingContext(object):
             msg = '; '.join(x for x in (msg, kwstr) if x)
             self._.log.debug('%s: %s', self._.guid, msg)
 
+    # If the namespace contention proves a nuisance, we can move
+    # the methods else where (like ctx.logger.*)
     def update(self, **kw):
         return self._update(context=kw)
-
-    def debug(self, *msg, **kw):
-        return self._update(msg=msg, level=logging.DEBUG, context=kw)
-
-    def info(self, *msg, **kw):
-        return self._update(msg=msg, level=logging.INFO, context=kw)
-
-    def warn(self, *msg, **kw):
-        return self._update(msg=msg, level=logging.WARN, context=kw)
-
-    def warning(self, *msg, **kw):
-        return self._update(*msg, level=logging.WARNING, context=kw)
-
-    def error(self, *msg, **kw):
-        return self._update(*msg, level=logging.ERROR, context=kw)
-
-    def fatal(self, *msg, **kw):
-        return self._update(*msg, level=logging.FATAL, context=kw)
-
-    def critical(self, *msg, **kw):
-        return self._update(*msg, level=logging.CRITICAL, context=kw)
 
     def stomp(self, obj):
         pass
 
     def __setattr__(self, name, value):
-        if name in ('_', 'context'):
+        if name in ('_', 'context', 'log'):
             object.__setattr__(self, name, value)
         else:
             self.update(**{name: value})
 
     def __getattr__(self, name):
+        if name not in self.context:
+            raise AttributeError
         return self.context[name]
 
     def __str__(self):
