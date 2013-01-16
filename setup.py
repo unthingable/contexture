@@ -19,7 +19,8 @@ setup(name='loggingcontext',
       author_email='alex@eat-up.org',
       packages=find_packages(),
       # package_data=find_package_data('loggingcontext',
-      #                                files=('proxies.txt',)),
+      #                                # files=('proxies.txt',)
+      #                                ),
       install_requires=[
         # 'tproxy',
         'stomp.py',

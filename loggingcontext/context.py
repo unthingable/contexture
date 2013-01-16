@@ -66,27 +66,6 @@ class LoggingContext(object):
 
         setattr(LogProxy, level_name, closure(level, level_name))
 
-        # def debug(self, *msg, **kw):
-        #     return self.ctx._update(msg=msg, level=logging.DEBUG, context=kw)
-
-        # def info(self, *msg, **kw):
-        #     return self.ctx._update(msg=msg, level=logging.INFO, context=kw)
-
-        # def warn(self, *msg, **kw):
-        #     return self.ctx._update(msg=msg, level=logging.WARN, context=kw)
-
-        # def warning(self, *msg, **kw):
-        #     return self.ctx._update(*msg, level=logging.WARNING, context=kw)
-
-        # def error(self, *msg, **kw):
-        #     return self.ctx._update(*msg, level=logging.ERROR, context=kw)
-
-        # def fatal(self, *msg, **kw):
-        #     return self.ctx._update(*msg, level=logging.FATAL, context=kw)
-
-        # def critical(self, *msg, **kw):
-        #     return self.ctx._update(*msg, level=logging.CRITICAL, context=kw)
-
     def __init__(self, name=None, context={}, heartbeat=None, logger=None):
         self.context = {}
         self._ = _dummy_obj()
@@ -130,8 +109,6 @@ class LoggingContext(object):
             msg = '; '.join(x for x in (msg, kwstr) if x)
             self._.log.debug('%s: %s', self._.guid, msg)
 
-    # If the namespace contention proves a nuisance, we can move
-    # the methods else where (like ctx.logger.*)
     def update(self, **kw):
         return self._update(context=kw)
 
@@ -145,6 +122,8 @@ class LoggingContext(object):
             self.update(**{name: value})
 
     def __getattr__(self, name):
+        if not hasattr(self, 'context'):
+            raise Exception("LoggingContext not initialized, call __init__()!")
         if name not in self.context:
             raise AttributeError
         return self.context[name]
@@ -153,11 +132,11 @@ class LoggingContext(object):
         return "%s %s" % (self._.name, self._.guid)
 
     def __enter__(self):
-        pass
+        return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        del self
+        # self.update(elapsed=(time() - self._.created_at), status="finished")
+        self.__del__()
 
     def __del__(self):
         self.update(elapsed=(time() - self._.created_at), status="finished")
-        # self.terminate = True
