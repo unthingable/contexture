@@ -1,0 +1,24 @@
+syntax: glob
+
+tags
+build
+dist
+nosetests.xml
+.coverage
+coverage.xml
+*.codeintel
+*DS_Store
+*.egg-info
+*/build/
+*/dist/
+*/setup.cfg
+.*.swp
+*.pyc
+*.py~
+.idea
+.rope*
+*#*
+*SOURCES.txt
+*pip-log.txt
+*PKG-INFO
+.installed.cfg
