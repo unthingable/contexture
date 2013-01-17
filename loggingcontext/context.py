@@ -1,8 +1,10 @@
 from collections import deque
+import inspect
 import logging
-import stomp
 from time import time
 import uuid
+
+from .emit import emit
 
 logging.basicConfig(level=logging.DEBUG)
 
@@ -68,8 +70,25 @@ class LoggingContext(object):
         self._ = _dummy_obj()
         self._.guid = uuid.uuid4()
 
+        # Unnamed contexts: attempt to get a meaningful name
         if name is None:
+            mname = ''
+            frame = inspect.stack()[1]
+            obj = frame[0]
+            clazz = obj.f_locals.get('self', None)
+            module = inspect.getmodule(obj)
+            if clazz:
+                mname = '%s.%s' % (clazz.__class__.__module__,
+                                   clazz.__class__.__name__)
+            elif module:
+                mname = module.__name__
+            elif not frame[3].startswith('<'):
+                mname = frame[3]
+
             name = self.__class__.__name__
+            if mname:
+                name = '.'.join((mname, name))
+
         self._.name = name
         self._.created_at = time()
         self._.log = logger or logging.getLogger(name)
@@ -95,7 +114,7 @@ class LoggingContext(object):
         obj['timestamp'] = time()
 
         # stomp send
-        self.stomp(obj)
+        emit(self, obj)
 
         # Log log
         if self._.log.isEnabledFor(level):
@@ -137,4 +156,5 @@ class LoggingContext(object):
 
     def __del__(self):
         if self._:
-            self.update(elapsed=(time() - self._.created_at), status="finished")
+            self.update(elapsed=(time() - self._.created_at),
+                        status="finished")
