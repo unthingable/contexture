@@ -22,7 +22,6 @@ setup(name='loggingcontext',
       #                                # files=('proxies.txt',)
       #                                ),
       install_requires=[
-        # 'tproxy',
         'stomp.py',
         'pyyaml',
         'nose',

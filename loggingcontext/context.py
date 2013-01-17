@@ -7,12 +7,6 @@ import uuid
 logging.basicConfig(level=logging.DEBUG)
 
 '''
-Requirements:
-
-1. use native logging methods
-2. propagate of value changews
-3.
-
 Use case:
 
 ctx = LoggingContext(name="mycontext")
@@ -41,8 +35,11 @@ class LoggingContext(object):
         log
         update
     '''
-    # LoggingContext is not created often, so we can afford
-    # to be a little expensive
+
+    # Reserved members to be enforced by __setattr__:
+    context = None
+    log = None
+    _ = None
 
     class LogProxy(object):
         def __init__(self, ctx):
@@ -76,9 +73,6 @@ class LoggingContext(object):
         self._.name = name
         self._.created_at = time()
         self._.log = logger or logging.getLogger(name)
-
-#        self.__.queue = deque()
-#        self.terminate = False
 
         # Construct the log proxy
         self.log = self.LogProxy(self)
@@ -116,8 +110,12 @@ class LoggingContext(object):
         pass
 
     def __setattr__(self, name, value):
-        if name in ('_', 'context', 'log'):
-            object.__setattr__(self, name, value)
+        if hasattr(LoggingContext, name):
+            if getattr(self, name) is None:
+                object.__setattr__(self, name, value)
+            else:
+                raise AttributeError("Attribute '%s' is reserved"
+                                     " (use update())" % name)
         else:
             self.update(**{name: value})
 
@@ -135,8 +133,8 @@ class LoggingContext(object):
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        # self.update(elapsed=(time() - self._.created_at), status="finished")
         self.__del__()
 
     def __del__(self):
-        self.update(elapsed=(time() - self._.created_at), status="finished")
+        if self._:
+            self.update(elapsed=(time() - self._.created_at), status="finished")
