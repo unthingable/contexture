@@ -41,7 +41,7 @@ class LoggingContext(object):
     # Reserved members to be enforced by __setattr__:
     context = None
     log = None
-    _ = None
+    _ = None    # for keeping stuff out of main namespace
 
     class LogProxy(object):
         def __init__(self, ctx):
@@ -65,10 +65,11 @@ class LoggingContext(object):
 
         setattr(LogProxy, level_name, closure(level, level_name))
 
-    def __init__(self, name=None, context={}, heartbeat=None, logger=None):
+    def __init__(self, name=None, context={}, ignore=[], logger=None):
         self.context = {}
         self._ = _dummy_obj()
         self._.guid = uuid.uuid4()
+        self._.ignore = tuple(ignore)
 
         # Unnamed contexts: attempt to get a meaningful name
         if name is None:
@@ -100,7 +101,12 @@ class LoggingContext(object):
 
     def _update(self, msg=[], level=logging.DEBUG, context={}):
         self.context.update(context)
-        obj = dict(context)
+        obj = dict((k, v) for k, v in context.iteritems()
+                   if k not in self._.ignore)
+
+        if not msg and not obj:
+            return
+
         if msg and self._.log.isEnabledFor(level):
             if len(msg):
                 msg = msg[0] % msg[1:]
@@ -123,10 +129,10 @@ class LoggingContext(object):
             self._.log.debug('%s: %s', self._.guid, msg)
 
     def update(self, **kw):
+        '''
+        Useful when you don't care about messages or log levels.
+        '''
         return self._update(context=kw)
-
-    def stomp(self, obj):
-        pass
 
     def __setattr__(self, name, value):
         if hasattr(LoggingContext, name):
