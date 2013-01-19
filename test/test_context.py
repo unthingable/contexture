@@ -1,7 +1,7 @@
 from cStringIO import StringIO
 import logging
 from loggingcontext import context
-from loggingcontext.emit import collate
+from loggingcontext.backend import collate
 from nose.tools import ok_, eq_, with_setup
 from random import random
 
@@ -42,6 +42,7 @@ class MyC(context.LoggingContext):
 
 
 def test_namespace():
+    # We can supply our our logger
     ctx = context.LoggingContext(logger=log)
     for word in member_words:
         thing = random()
@@ -72,11 +73,13 @@ def test_reserved_subclass():
 
 
 def test_name_standalone():
+    # We can use context on its own
     ctx = context.LoggingContext()
     print ctx._.name
 
 
 def test_name_subclass():
+    # We can extend context
     mc = MyC()
     print mc._.name
 
@@ -95,6 +98,7 @@ def test_name_subclass_class():
 
 
 def test_name_subclass_init():
+    # We can use context inside another class and it will know.
     # Done properly:
     class MyWhatever2(object):
         def __init__(self):
@@ -103,9 +107,14 @@ def test_name_subclass_init():
     mw = MyWhatever2()
     print mw.ctx._.name
 
-# Actual logging
-stream = StringIO()
-emit_buffer = []
+def test_name_set():
+    # We can use our own name
+    ctx = context.LoggingContext(name='foo.bar')
+    eq_(ctx._.name, 'foo.bar')
+
+### Actual logging:
+stream = StringIO() # log output
+emit_buffer = []    # what emitter will see
 handler = logging.StreamHandler(stream)
 
 real_emit = context.emit
@@ -136,6 +145,19 @@ def test_logging():
 
 
 @with_setup(setup, teardown)
+def test_logging_msg():
+    # We can do messages, too
+    ctx = context.LoggingContext(logger=log)
+    ctx.log.info('ohai')
+    ok_('ohai' in stream.getvalue())
+
+    # And we can use context to format
+    ctx.x = 123
+    ctx.log.info('i has {x}')
+    ok_('i has 123' in stream.getvalue())
+
+
+@with_setup(setup, teardown)
 def test_context_emit():
     # We can supply initial context
     ctx = context.LoggingContext(logger=log, context=dict(x=4))
@@ -147,9 +169,9 @@ def test_context_emit():
 
     prev_len = len(emit_buffer)
     ctx.x = 1
-    ok_(len(emit_buffer) > prev_len)
+    ok_(len(emit_buffer) > prev_len, 'Buffer is supposed to grow')
     db = collate(emit_buffer)
-    eq_(len(db), 1)
+    eq_(len(db), 1, "Collation is not supposed to grow")
     eq_(db[ctx]['x'], 1)
 
 
@@ -162,3 +184,25 @@ def test_context_emit_ignore():
     ctx.foo = 5
     eq_(len(emit_buffer), prev_emit_len)
     eq_(len(stream.getvalue()), prev_log_len)
+
+
+@with_setup(setup, teardown)
+def test_emit_msg():
+    ctx = context.LoggingContext(logger=log)
+    ctx.log.debug('ohai')
+    db = collate(emit_buffer)
+    eq_(db[ctx]['msg'], 'ohai')
+
+
+import time
+def test_real_emit():
+    ctx = context.LoggingContext(logger=log)
+    for x in range(600):
+        ctx.real_deal = x
+        # time.sleep(0.01)
+    # Let the handler finish
+    time.sleep(20)
+
+
+if __name__ == '__main__':
+    test_real_emit()

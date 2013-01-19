@@ -9,12 +9,14 @@ log = logging.getLogger(__name__)
 
 handlers = []
 
-# load handlers, start threads
-for name, h_config in config.iteritems():
-    if not name.endswith('_handler'):
-        continue
-    module = __import__(name, globals(), locals())
-    handlers.extend(module.configure_handlers())
+def _init():
+    # Load handlers, start threads
+    for name, h_config in config.iteritems():
+        if not name.endswith('_handler'):
+            continue
+        module = __import__(name, globals(), locals())
+        log.debug("Adding handlers from " + module.__name__)
+        handlers.extend(module.configure_handlers())
 
 
 def collate(stream):
@@ -30,5 +32,7 @@ def collate(stream):
 
 
 def emit(ctx, obj):
+    if not handlers:
+        _init()
     for handler in handlers:
         handler(ctx, obj)

@@ -4,9 +4,10 @@ import logging
 from time import time
 import uuid
 
+from . import backend
 from .backend import emit
 
-logging.basicConfig(level=logging.DEBUG)
+# logging.basicConfig(level=logging.DEBUG)
 
 '''
 Use case:
@@ -23,6 +24,10 @@ with LoggingContext(context=dict(foo=1)) as ctx:
     ...
     ctx.foo = 3
 '''
+
+# def emit(**args):
+#     # TODO: clarify why
+#     raise Exception("LogginContext not configured!")
 
 
 class _dummy_obj:
@@ -65,10 +70,19 @@ class LoggingContext(object):
 
         setattr(LogProxy, level_name, closure(level, level_name))
 
-    def __init__(self, name=None, context={}, ignore=[], logger=None):
+    def __init__(self,
+                 name=None,         # amqp routing key
+                 routing_key=None,  # leave empty to use name
+                 headers={},        # amqp headers
+                 context={},        # initial context
+                 ignore=[],         # exclude from handling
+                 silent=False,      # for using LC from SH
+                 logger=None):      # custom logger
         self.context = {}
         self._ = _dummy_obj()
-        self._.guid = uuid.uuid4()
+        self._.headers = {}
+        self._.silent = silent
+        self._.guid = str(uuid.uuid4())
         self._.ignore = tuple(ignore)
 
         # Unnamed contexts: attempt to get a meaningful name
@@ -91,6 +105,7 @@ class LoggingContext(object):
                 name = '.'.join((mname, name))
 
         self._.name = name
+        self._.routing_key = name if routing_key is None else routing_key
         self._.created_at = time()
         self._.log = logger or logging.getLogger(name)
 
@@ -120,7 +135,8 @@ class LoggingContext(object):
         # obj['timestamp'] = time()
 
         # stomp send
-        emit(self, obj)
+        if not self._.silent:
+            emit(self, obj)
 
         # Log log
         if self._.log.isEnabledFor(level):
@@ -164,3 +180,7 @@ class LoggingContext(object):
         if self._:
             self.update(elapsed=(time() - self._.created_at),
                         status="finished")
+
+
+# from . import backend
+# emit = backend.emit
