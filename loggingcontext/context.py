@@ -4,7 +4,7 @@ import logging
 from time import time
 import uuid
 
-from .emit import emit
+from .backend import emit
 
 logging.basicConfig(level=logging.DEBUG)
 
@@ -117,7 +117,7 @@ class LoggingContext(object):
             msg = None
         if msg:
             obj['msg'] = msg
-        obj['timestamp'] = time()
+        # obj['timestamp'] = time()
 
         # stomp send
         emit(self, obj)
