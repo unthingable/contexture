@@ -3,6 +3,7 @@ import inspect
 import logging
 from time import time
 import uuid
+import weakref
 
 from . import backend
 from .backend import emit
@@ -106,7 +107,7 @@ class LoggingContext(object):
         self._.log = logger or logging.getLogger(name)
 
         # Construct the log proxy
-        self.log = self.LogProxy(self)
+        self.log = self.LogProxy(weakref.ref(self))
 
         self.update(status="born", **context)
 
