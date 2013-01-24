@@ -10,11 +10,11 @@ import time
 import threading
 import uuid
 
-# from loggingcontext.context import LoggingContext
+LOGGER = logging.getLogger(__name__)
+
+
 from loggingcontext import settings
 config = settings.config['amqp_handler']
-
-LOGGER = logging.getLogger(__name__)
 
 CtxTuple = namedtuple('CtxTuple', ('ctx', 'obj'))
 
@@ -38,7 +38,7 @@ class AMQPHandler(logging.Handler):
         self._url = url
         self._exchange = exchange
         self._type = exchange_type
-        self._queue = Queue(maxsize=1000)
+        self._queue = Queue(maxsize=100000)
         self._running = False
         env = dict(host=socket.gethostname(),
                    pid=os.getpid(),
@@ -197,8 +197,6 @@ class AMQPHandler(logging.Handler):
         self._connection.ioloop.start()
 
     def emit(self, record, ctx=None):
-        if not self._running:
-            return
         try:
             self._queue.put_nowait(CtxTuple(ctx, record))
         except Full:
@@ -211,7 +209,8 @@ class AMQPHandler(logging.Handler):
             except Empty:
                 break
             self.publish_tuple(item)
-        self._connection.add_timeout(self.INTERVAL, self.schedule_next_message)
+        if self._running:
+            self._connection.add_timeout(self.INTERVAL, self.schedule_next_message)
 
     def publish_tuple(self, ctxtuple):
         ctx = ctxtuple.ctx
@@ -266,5 +265,26 @@ def main():
     time.sleep(20)
 
 
+def monitor():
+    def on_message(channel, method_frame, header_frame, body):
+        print method_frame.delivery_tag
+        print body
+        print
+        channel.basic_ack(delivery_tag=method_frame.delivery_tag)
+
+
+    connection = pika.BlockingConnection()
+    channel = connection.channel()
+
+    result = channel.queue_declare(auto_delete=True)
+    queue = result.method.queue
+    channel.queue_bind(queue, exchange='lc-topic', routing_key='#')
+    channel.basic_consume(on_message, queue, no_ack=True)
+    try:
+        channel.start_consuming()
+    except KeyboardInterrupt:
+        channel.stop_consuming()
+    connection.close()
+
 if __name__ == "__main__":
-    main()
+    monitor()

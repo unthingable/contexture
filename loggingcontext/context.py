@@ -25,10 +25,6 @@ with LoggingContext(context=dict(foo=1)) as ctx:
     ctx.foo = 3
 '''
 
-# def emit(**args):
-#     # TODO: clarify why
-#     raise Exception("LogginContext not configured!")
-
 
 class _dummy_obj:
     pass
