@@ -27,6 +27,7 @@ def rkey(ctx, obj):
     else:
         return 'default'
 
+# TODO: add heartbeat
 
 class AMQPHandler(logging.Handler):
 
@@ -138,7 +139,7 @@ class AMQPHandler(logging.Handler):
         self._channel.exchange_declare(callback=self.on_exchange_declareok,
                                        exchange=exchange_name,
                                        exchange_type=self._type,
-                                       passive=True)
+                                       )
 
     def on_delivery_confirmation(self, method_frame):
         """Invoked by pika when RabbitMQ responds to a Basic.Publish RPC

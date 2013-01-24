@@ -47,7 +47,7 @@ class LoggingContext(object):
 
     class LogProxy(object):
         def __init__(self, ctx):
-            self.ctx = ctx
+            self.ctx_ref = weakref.ref(ctx)
 
     # Create LogProxy logging methods
     for level_name in ('info',
@@ -61,7 +61,7 @@ class LoggingContext(object):
 
         def closure(level, name):
             def log_func(lp, *msg, **kw):
-                return lp.ctx._update(msg=msg, level=level, context=kw)
+                return lp.ctx_ref()._update(msg=msg, level=level, context=kw)
             log_func.func_name = name
             return log_func
 
@@ -81,6 +81,7 @@ class LoggingContext(object):
         self._.silent = silent
         self._.guid = str(uuid.uuid4())
         self._.ignore = tuple(ignore)
+        self._.deleted = False
 
         # Unnamed contexts: attempt to get a meaningful name
         if name is None:
@@ -107,7 +108,7 @@ class LoggingContext(object):
         self._.log = logger or logging.getLogger(name)
 
         # Construct the log proxy
-        self.log = self.LogProxy(weakref.ref(self))
+        self.log = self.LogProxy(self)
 
         self.update(status="born", **context)
 
@@ -174,10 +175,9 @@ class LoggingContext(object):
         self.__del__()
 
     def __del__(self):
-        if self._:
+        if self._ and not self._.deleted:
+            # Calling self.update will resurrect us in the middle
+            # of dying, causing a loop of death. So, only die once.
+            self._.deleted = True
             self.update(elapsed=(time() - self._.created_at),
                         status="finished")
-
-
-# from . import backend
-# emit = backend.emit
