@@ -120,7 +120,7 @@ class LoggingContext(object):
         if not msg and not obj:
             return
 
-        if msg and self._.log.isEnabledFor(level):
+        if msg:
             if len(msg):
                 msg = msg[0] % msg[1:]
             else:

@@ -200,7 +200,7 @@ class AMQPHandler(logging.Handler):
         try:
             self._queue.put_nowait(CtxTuple(ctx, record))
         except Full:
-            LOGGER.debug('Queue full, discarding')
+            LOGGER.warning('Queue full, discarding')
 
     def schedule_next_message(self):
         while True:
