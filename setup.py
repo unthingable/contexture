@@ -14,21 +14,12 @@ def find_package_data(package, files=()):
 
 setup(name='loggingcontext',
       description='Logging Magic',
-      version=0.3,
+      version=os.environ.get('GIT_BRANCH'),
       author='Alex',
       author_email='alex@eat-up.org',
       packages=find_packages(),
-      # package_data=find_package_data('loggingcontext',
-      #                                # files=('proxies.txt',)
-      #                                ),
-      # entry_points={
-      #   "console_scripts": [
-      #       'lccon = loggingcontext.monitor:main',
-      #   ]
-      # },
       install_requires=[
         'pika',
-        'pyyaml',
         'nose',
       ]
 )
