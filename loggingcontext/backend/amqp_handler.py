@@ -110,10 +110,6 @@ class AMQPHandler(logging.Handler):
         self._channel.add_on_close_callback(self.on_channel_closed)
         self.setup_exchange(self._exchange)
 
-        # start publishing
-        # self.enable_delivery_confirmations()
-        self.schedule_next_message()
-
     def open_channel(self):
         """This method will open a new channel with RabbitMQ by issuing the
         Channel.Open RPC command. When RabbitMQ confirms the channel is open
@@ -125,7 +121,9 @@ class AMQPHandler(logging.Handler):
         self._connection.channel(on_open_callback=self.on_channel_open)
 
     def on_exchange_declareok(self, exchange_name):
-        pass
+        # start publishing
+        # self.enable_delivery_confirmations()
+        self.schedule_next_message()
 
     def setup_exchange(self, exchange_name):
         """Setup the exchange on RabbitMQ by invoking the Exchange.Declare RPC
@@ -139,6 +137,7 @@ class AMQPHandler(logging.Handler):
         self._channel.exchange_declare(callback=self.on_exchange_declareok,
                                        exchange=exchange_name,
                                        exchange_type=self._type,
+                                       durable=True
                                        )
 
     def on_delivery_confirmation(self, method_frame):
