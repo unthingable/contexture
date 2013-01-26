@@ -80,7 +80,8 @@ class LoggingContext(object):
                  context={},        # initial context
                  ignore=[],         # exclude from handling
                  silent=False,      # for using LC from SH
-                 logger=None):      # custom logger
+                 logger=None,       # custom logger
+                 ):
         self.context = {}
         self._ = _dummy_obj()
         self._.headers = {}
@@ -111,7 +112,7 @@ class LoggingContext(object):
         self._.name = name
         self._.routing_key = name if routing_key is None else routing_key
         self._.created_at = time()
-        self._.log = logger or logging.getLogger(name)
+        self._.log = logger
 
         # Construct the log proxy
         self.log = self.LogProxy(self)
@@ -145,7 +146,7 @@ class LoggingContext(object):
             backend_logger.log(level, out_obj)
 
         # Log log
-        if self._.log.isEnabledFor(level):
+        if self._.log and self._.log.isEnabledFor(level):
             kwstr = ', '.join("%s = %s" % x for x in context.iteritems())
             msg = '; '.join(x for x in (msg, kwstr) if x)
             self._.log.log(level, '%s: %s', self._.guid, msg)

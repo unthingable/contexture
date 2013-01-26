@@ -259,7 +259,7 @@ class AMQPHandler(logging.Handler):
 
 def monitor(url=None, keys=['#'], exchange='lc-topic'):
     def on_message(channel, method_frame, header_frame, body):
-        print method_frame.delivery_tag
+        print method_frame.delivery_tag, method_frame, header_frame
         print body
         print
         # channel.basic_ack(delivery_tag=method_frame.delivery_tag)
@@ -295,6 +295,3 @@ def monitor_cmd():
     args = parser.parse_args()
     url = args.url or 'amqp://guest:guest@%s:5672/%%2F' % args.host
     monitor(keys=args.keys.split(), exchange=args.exchange, url=url)
-
-if __name__ == "__main__":
-    monitor(keys=sys.argv[1:])
