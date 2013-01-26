@@ -1,9 +1,14 @@
 from cStringIO import StringIO
+from pkg_resources import resource_filename
 import logging
+import logging.config
+
+logging.config.fileConfig(resource_filename(__name__, 'test.conf'))
+
 from loggingcontext import context
-from loggingcontext.backend import collate
 from nose.tools import ok_, eq_, with_setup
 from random import random
+import json
 
 member_words = '''addheaders
 add_to_cart_page
@@ -39,6 +44,37 @@ log = logging.getLogger(__name__)
 
 class MyC(context.LoggingContext):
     foo = 1
+
+
+def collate(stream):
+    '''
+    Given (context, dict) pairs, assemble the object incrementally.
+    Return context->object dict.
+    '''
+    db = {}
+    for d in stream:
+        if 'obj' not in d:
+            continue
+        sobj = d['obj']
+        sobj_id = d['obj_id']
+        obj = db.setdefault(sobj_id, {})
+        obj.update(sobj)
+    return db
+
+
+def test_collate():
+    stream = [dict(obj={"foo": 1}, obj_id=5)]
+    db = collate(stream)
+    eq_(db, {5: {'foo': 1}})
+
+
+def test_collate_2():
+    stream = [dict(obj={"foo": 1}, obj_id=5),
+              dict(obj={"bar": 2}, obj_id=5),
+              dict(obj={"foo": 3}, obj_id=5),
+              ]
+    db = collate(stream)
+    eq_(db, {5: {'foo': 3, 'bar': 2}})
 
 
 def test_namespace():
@@ -107,35 +143,40 @@ def test_name_subclass_init():
     mw = MyWhatever2()
     print mw.ctx._.name
 
+
 def test_name_set():
     # We can use our own name
     ctx = context.LoggingContext(name='foo.bar')
     eq_(ctx._.name, 'foo.bar')
 
-### Actual logging:
-stream = StringIO() # log output
-emit_buffer = []    # what emitter will see
-handler = logging.StreamHandler(stream)
 
-real_emit = context.emit
+stream = StringIO()  # log output
+emit_buffer = []
+out_handler = logging.StreamHandler(stream)
 
 
-def mock_emit(ctx, obj):
-    emit_buffer.append((ctx, obj))
+class BHandler(logging.Handler):
+    def __init__(self):
+        logging.Handler.__init__(self)
+
+    def emit(self, record):
+        emit_buffer.append(record.msg)
+
+backend_handler = BHandler()
+backend_handler.setLevel(logging.DEBUG)
 
 
 def setup():
-    log.addHandler(handler)
+    context.backend_logger.addHandler(backend_handler)
+    log.addHandler(out_handler)
     stream.reset()
     stream.truncate()
     del emit_buffer[:]
-    context.emit = mock_emit
 
 
 def teardown():
-    log.removeHandler(handler)
-    context.emit = real_emit
-
+    context.backend_logger.removeHandler(backend_handler)
+    log.removeHandler(out_handler)
 
 @with_setup(setup, teardown)
 def test_logging():
@@ -148,13 +189,23 @@ def test_logging():
 def test_logging_msg():
     # We can do messages, too
     ctx = context.LoggingContext(logger=log)
-    ctx.log.info('ohai')
+    ctx.log.debug('ohai')
     ok_('ohai' in stream.getvalue())
 
     # And we can use context to format
     ctx.x = 123
-    ctx.log.info('i has {x}')
+    ctx.log.debug('i has {x}')
     ok_('i has 123' in stream.getvalue())
+
+
+@with_setup(setup, teardown)
+def test_logging_death():
+    'Our death must be documented'
+    ctx = context.LoggingContext(logger=log)
+    prev = len(stream.getvalue())
+    del ctx
+    # Do not got gentle into that good night
+    ok_(len(stream.getvalue()) != prev)
 
 
 @with_setup(setup, teardown)
@@ -162,17 +213,18 @@ def test_context_emit():
     # We can supply initial context
     ctx = context.LoggingContext(logger=log, context=dict(x=4))
     ctx.foo = 'bar'
+    guid = ctx._.guid
     db = collate(emit_buffer)
     eq_(len(db), 1)
-    eq_(db[ctx]['foo'], 'bar')
-    eq_(db[ctx]['x'], 4)
+    eq_(db[guid]['foo'], 'bar')
+    eq_(db[guid]['x'], 4)
 
     prev_len = len(emit_buffer)
     ctx.x = 1
     ok_(len(emit_buffer) > prev_len, 'Buffer is supposed to grow')
     db = collate(emit_buffer)
     eq_(len(db), 1, "Collation is not supposed to grow")
-    eq_(db[ctx]['x'], 1)
+    eq_(db[guid]['x'], 1)
 
 
 @with_setup(setup, teardown)
@@ -191,11 +243,11 @@ def test_emit_msg():
     ctx = context.LoggingContext(logger=log)
     ctx.log.debug('ohai')
     db = collate(emit_buffer)
-    eq_(db[ctx]['msg'], 'ohai')
+    eq_(db[ctx._.guid]['message'], 'ohai')
 
 
 import time
-def test_real_emit():
+def real_emit():
     with context.LoggingContext(logger=log) as ctx:
         for x in range(600):
             ctx.real_deal = x
@@ -205,4 +257,4 @@ def test_real_emit():
 
 
 if __name__ == '__main__':
-    test_real_emit()
+    real_emit()
