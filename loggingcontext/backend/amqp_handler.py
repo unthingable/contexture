@@ -257,25 +257,44 @@ class AMQPHandler(logging.Handler):
         self.stop()
 
 
-def monitor():
+def monitor(url=None, keys=['#'], exchange='lc-topic'):
     def on_message(channel, method_frame, header_frame, body):
         print method_frame.delivery_tag
         print body
         print
         # channel.basic_ack(delivery_tag=method_frame.delivery_tag)
 
-    connection = pika.BlockingConnection()
+    params = None
+    if url:
+        params = pika.URLParameters(url)
+    connection = pika.BlockingConnection(params)
     channel = connection.channel()
 
     result = channel.queue_declare(auto_delete=True)
     queue = result.method.queue
-    channel.queue_bind(queue, exchange='lc-topic', routing_key='#')
+    for key in keys:
+        channel.queue_bind(queue, exchange=exchange, routing_key=key)
     channel.basic_consume(on_message, queue, no_ack=True)
     try:
+        print "Listening for %s on %s on %s" % (keys, exchange, url)
         channel.start_consuming()
     except KeyboardInterrupt:
         channel.stop_consuming()
     connection.close()
 
+
+def monitor_cmd():
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-k', '--keys', default='#', help="binding keys")
+    parser.add_argument('-e', '--exchange', default='lc-topic', help="exchange")
+    parser.add_argument('-H', '--host', default='localhost', help="hostname")
+    parser.add_argument('-u', '--url',
+                        help="Fully qualified url (overrides hostname)")
+
+    args = parser.parse_args()
+    url = args.url or 'amqp://guest:guest@%s:5672/%%2F' % args.host
+    monitor(keys=args.keys.split(), exchange=args.exchange, url=url)
+
 if __name__ == "__main__":
-    monitor()
+    monitor(keys=sys.argv[1:])

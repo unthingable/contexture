@@ -22,5 +22,9 @@ setup(name='loggingcontext',
       packages=find_packages(),
       install_requires=requirements,
       package_data=find_package_data('loggingcontext',
-                                     files=('config.conf',))
+                                     files=('config.conf',)),
+      entry_points="""
+        [console_scripts]
+        lcmon=loggingcontext.backend.amqp_handler:monitor_cmd
+    """
 )
