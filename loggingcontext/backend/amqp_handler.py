@@ -1,4 +1,3 @@
-from collections import deque, namedtuple
 import json
 import logging
 import os
@@ -10,29 +9,20 @@ import time
 import threading
 import uuid
 
-LOGGER = logging.getLogger(__name__)
+LOGGER = logging.getLogger()
 
 
-from loggingcontext import settings
-config = settings.config['amqp_handler']
+def faux_record(obj):
+    class faux:
+        msg = obj
+        created = time.time()
+        routing_key = obj.get('routing_key', 'lc-handler')
+    return faux
 
-CtxTuple = namedtuple('CtxTuple', ('ctx', 'obj'))
 
-# Room for optimization here, perhaps
-def rkey(ctx, obj):
-    if ctx:
-        return ctx._.routing_key
-    elif 'destination' in obj:
-        return obj['destination']
-    else:
-        return 'default'
-
-# TODO: add heartbeat
-
+# TODO: add heartbeat?
 class AMQPHandler(logging.Handler):
 
-    # EXCHANGE = 'message'
-    # EXCHANGE_TYPE = 'topic'
     INTERVAL = 1
 
     def __init__(self, url, exchange='lc-topic', exchange_type='topic'):
@@ -40,16 +30,20 @@ class AMQPHandler(logging.Handler):
         self._exchange = exchange
         self._type = exchange_type
         self._queue = Queue(maxsize=100000)
-        self._running = False
+        self._running = True
+        self._guid = str(uuid.uuid4())
         env = dict(host=socket.gethostname(),
                    pid=os.getpid(),
                    argv=sys.argv,
                    )
 
-        from loggingcontext.context import LoggingContext
-        self.ctx = LoggingContext(context=env, logger=LOGGER, silent=True)
+        thread = threading.Thread(target=self.run)
+        thread.daemon = True
+        thread.start()
 
-        self.emit_from_context(self.ctx, self.ctx.context)
+        self.emit(faux_record(env))
+
+        logging.Handler.__init__(self)
 
     def connect(self):
         return pika.SelectConnection(pika.URLParameters(self._url),
@@ -174,9 +168,29 @@ class AMQPHandler(logging.Handler):
         self._channel.confirm_delivery(self.on_delivery_confirmation)
 
     def run(self):
-        self._running = True
-        self._connection = self.connect()
-        self._connection.ioloop.start()
+        try:
+            self._running = True
+            self._connection = self.connect()
+            self._connection.ioloop.start()
+        except pika.exceptions.AMQPConnectionError:
+            self._running = False
+            # Free up queued objects
+            with self._queue.mutex:
+                self._queue.queue.clear()
+            raise
+
+    def close_channel(self):
+        """Invoke this command to close the channel with RabbitMQ by sending
+        the Channel.Close RPC command.
+
+        """
+        LOGGER.info('Closing the channel')
+        self._channel.close()
+
+    def close_connection(self):
+        """This method closes the connection to RabbitMQ."""
+        LOGGER.info('Closing connection')
+        self._connection.close()
 
     def stop(self):
         """
@@ -191,16 +205,21 @@ class AMQPHandler(logging.Handler):
         disconnect from RabbitMQ.
 
         """
+        # Stopping from __del__ quite work, but we don't care so much.
+        self.emit(faux_record({"stopping": True}))
         self._running = False
         self.close_channel()
         self.close_connection()
         self._connection.ioloop.start()
 
-    def emit(self, record, ctx=None):
+    def emit(self, record):
         try:
-            self._queue.put_nowait(CtxTuple(ctx, record))
+            self._queue.put_nowait(record)
         except Full:
             LOGGER.warning('Queue full, discarding')
+
+    def filter(self, record):
+        return int(self._running)
 
     def schedule_next_message(self):
         while True:
@@ -208,61 +227,34 @@ class AMQPHandler(logging.Handler):
                 item = self._queue.get_nowait()
             except Empty:
                 break
-            self.publish_tuple(item)
+            self.publish_record(item)
         if self._running:
             self._connection.add_timeout(self.INTERVAL, self.schedule_next_message)
 
-    def publish_tuple(self, ctxtuple):
-        ctx = ctxtuple.ctx
-        record = ctxtuple.obj
+    def publish_record(self, record):
+        obj = record.msg
 
-        record['time_out'] = time.time()
+        obj['time_out'] = time.time()
+        obj['time_in'] = record.created
         # A little redundant, but, again, why not
-        if 'time_in' in record:
-            record['elapsed'] = (record['time_out'] - record['time_in'])
-        record['queue'] = self._queue.qsize()
+        obj['elapsed'] = (obj['time_out'] - obj['time_in'])
+        obj['queue'] = self._queue.qsize()
+        obj['handler_id'] = self._guid
 
-        message = json.dumps(record)
-        headers = None if not ctx else ctx._.headers
+        headers = obj.pop('headers', None)
+        # What happends if destination is None?
+        destination = obj.pop('routing_key', 'default')
+        message = json.dumps(obj)
 
         properties = pika.BasicProperties(app_id='loggingcontext.amqphandler',
                                           content_type='text/plain',
                                           headers=headers)
-        # print (self._exchange, rkey(ctx, record),
-        #                             message, properties)
-        self._channel.basic_publish(self._exchange, rkey(ctx, record),
+        self._channel.basic_publish(self._exchange, destination,
                                     message, properties)
 
-    def emit_from_context(self, ctx, obj):
-        '''
-        A special emit() to be called by LoggingContext.
-        ctx: the context in question
-        obj: the object that represents the context update
-        '''
-        out_obj = {'obj_id': ctx._.guid,
-                   'handler_id': self.ctx._.guid,
-                   'time_in': time.time(),
-                   'obj': obj}
-        self.emit(out_obj, ctx=ctx)
-
-
-def configure_handlers():
-    'Return handler functions'
-    handler = AMQPHandler(**config)
-    thread = threading.Thread(target=handler.run)
-    thread.daemon = True
-    thread.start()
-    return [handler.emit_from_context]
-
-
-def main():
-    logging.basicConfig(level=logging.DEBUG)
-    example = AMQPHandler(**config)
-    thread = threading.Thread(target=example.run)
-    thread.daemon = True
-    thread.start()
-    example.emit({'blah': 'hi'})
-    time.sleep(20)
+    # Well, attempt to exit cleanly.
+    def __del__(self):
+        self.stop()
 
 
 def monitor():
@@ -271,7 +263,6 @@ def monitor():
         print body
         print
         # channel.basic_ack(delivery_tag=method_frame.delivery_tag)
-
 
     connection = pika.BlockingConnection()
     channel = connection.channel()

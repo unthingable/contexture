@@ -1,14 +1,11 @@
-from collections import deque
 import inspect
 import logging
+import logging.config
+import os.path
+from pkg_resources import resource_filename
 from time import time
 import uuid
 import weakref
-
-from . import backend
-from .backend import emit
-
-# logging.basicConfig(level=logging.DEBUG)
 
 '''
 Use case:
@@ -30,6 +27,15 @@ with LoggingContext(context=dict(foo=1)) as ctx:
 class _dummy_obj:
     pass
 
+backend_logger = logging.getLogger("loggingcontext")
+
+# See if we're properly configured
+if not backend_logger.handlers:
+    # Load config and rebuild
+    config_file = resource_filename(__name__, 'config.conf')
+    config_file = os.path.normpath(config_file)
+    logging.config.fileConfig(config_file)
+    backend_logger = logging.getLogger("loggingcontext")
 
 # to be used by itself _and_ extended
 class LoggingContext(object):
@@ -129,18 +135,20 @@ class LoggingContext(object):
         else:
             msg = None
         if msg:
-            obj['msg'] = msg
-        # obj['timestamp'] = time()
+            obj['message'] = msg
 
-        # stomp send
+        # send through backend
         if not self._.silent:
-            emit(self, obj)
+            out_obj = {'obj_id': self._.guid,
+                       'obj': obj,
+                       'routing_key': self._.routing_key}
+            backend_logger.log(level, out_obj)
 
         # Log log
         if self._.log.isEnabledFor(level):
             kwstr = ', '.join("%s = %s" % x for x in context.iteritems())
             msg = '; '.join(x for x in (msg, kwstr) if x)
-            self._.log.debug('%s: %s', self._.guid, msg)
+            self._.log.log(level, '%s: %s', self._.guid, msg)
 
     def update(self, **kw):
         '''
