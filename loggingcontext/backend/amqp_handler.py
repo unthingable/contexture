@@ -20,6 +20,10 @@ def faux_record(obj):
     return faux
 
 
+# def publish(obj, headers=None, exchange='default', routing_key='lc-handler'):
+#     'Shorthand to publish anything anywhere'
+
+
 # TODO: add heartbeat?
 class AMQPHandler(logging.Handler):
 
@@ -244,12 +248,13 @@ class AMQPHandler(logging.Handler):
         headers = obj.pop('headers', None)
         # What happends if destination is None?
         destination = obj.pop('routing_key', 'default')
+        exchange = obj.pop('exchange', self._exchange)
         message = json.dumps(obj)
 
         properties = pika.BasicProperties(app_id='loggingcontext.amqphandler',
                                           content_type='text/plain',
                                           headers=headers)
-        self._channel.basic_publish(self._exchange, destination,
+        self._channel.basic_publish(exchange, destination,
                                     message, properties)
 
     # Well, attempt to exit cleanly.
