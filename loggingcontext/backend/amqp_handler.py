@@ -29,9 +29,10 @@ class AMQPHandler(logging.Handler):
 
     INTERVAL = 1
 
-    def __init__(self, url, exchange='lc-topic', exchange_type='topic'):
+    def __init__(self, url, exchange='lc-topic', exchange_type='topic', headers={}):
         self._url = url
         self._exchange = exchange
+        self._headers = headers
         self._type = exchange_type
         self._queue = Queue(maxsize=100000)
         self._running = True
@@ -245,7 +246,8 @@ class AMQPHandler(logging.Handler):
         obj['queue'] = self._queue.qsize()
         obj['handler_id'] = self._guid
 
-        headers = obj.pop('headers', None)
+        headers = self._headers.copy()
+        headers.update(obj.pop('headers', {}))
         # What happends if destination is None?
         destination = obj.pop('routing_key', 'default')
         exchange = obj.pop('exchange', self._exchange)
