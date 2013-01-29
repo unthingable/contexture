@@ -248,7 +248,7 @@ def test_emit_msg():
 
 import time
 def real_emit():
-    with context.LoggingContext(logger=log) as ctx:
+    with context.LoggingContext() as ctx:
         for x in range(600):
             ctx.real_deal = x
             # time.sleep(0.01)
@@ -257,4 +257,5 @@ def real_emit():
 
 
 if __name__ == '__main__':
+    print 'real_emit()'
     real_emit()
