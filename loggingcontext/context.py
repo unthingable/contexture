@@ -32,6 +32,7 @@ backend_logger = logging.getLogger("loggingcontext")
 # See if we're properly configured
 if not backend_logger.handlers:
     # Load config and rebuild
+    print 'loggingcontext logger not initialized'
     config_file = resource_filename(__name__, 'config.conf')
     config_file = os.path.normpath(config_file)
     logging.config.fileConfig(config_file)
@@ -84,7 +85,7 @@ class LoggingContext(object):
                  ):
         self.context = {}
         self._ = _dummy_obj()
-        self._.headers = {}
+        self._.headers = headers
         self._.silent = silent
         self._.guid = str(uuid.uuid4())
         self._.ignore = tuple(ignore)
@@ -142,7 +143,8 @@ class LoggingContext(object):
         if not self._.silent:
             out_obj = {'obj_id': self._.guid,
                        'obj': obj,
-                       'routing_key': self._.routing_key}
+                       'routing_key': self._.routing_key,
+                       'headers': self._.headers}
             backend_logger.log(level, out_obj)
 
         # Log log

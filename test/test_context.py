@@ -178,6 +178,7 @@ def teardown():
     context.backend_logger.removeHandler(backend_handler)
     log.removeHandler(out_handler)
 
+
 @with_setup(setup, teardown)
 def test_logging():
     ctx = context.LoggingContext(logger=log)
@@ -226,6 +227,15 @@ def test_context_emit():
     eq_(len(db), 1, "Collation is not supposed to grow")
     eq_(db[guid]['x'], 1)
 
+    # Try the .update()
+    prev_len = len(emit_buffer)
+    ctx.update(x=2, y=3)
+    ok_(len(emit_buffer) > prev_len, 'Buffer is supposed to grow')
+    db = collate(emit_buffer)
+    eq_(len(db), 1, "Collation is not supposed to grow")
+    eq_(db[guid]['x'], 2)
+    eq_(db[guid]['y'], 3)
+
 
 @with_setup(setup, teardown)
 def test_context_emit_ignore():
@@ -248,7 +258,8 @@ def test_emit_msg():
 
 import time
 def real_emit():
-    with context.LoggingContext() as ctx:
+    with context.LoggingContext(context={"foo": 123},
+                                headers={"merchant_id": "123"}) as ctx:
         for x in range(600):
             ctx.real_deal = x
             # time.sleep(0.01)
