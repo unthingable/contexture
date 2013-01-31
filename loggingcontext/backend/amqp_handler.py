@@ -41,6 +41,7 @@ class AMQPHandler(logging.Handler):
                    pid=os.getpid(),
                    argv=sys.argv,
                    )
+        self._headers['hostname'] = env['host']
 
         thread = threading.Thread(target=self.run)
         thread.daemon = True
@@ -264,8 +265,8 @@ class AMQPHandler(logging.Handler):
         self.stop()
 
 
-def monitor(url=None, args=None, keys=['#'], exchange='lc-topic'):
-    def on_message(channel, method_frame, header_frame, body, verbose=False):
+def monitor(url=None, args=None, keys=['#'], exchange='lc-topic', verbose=False):
+    def on_message(channel, method_frame, header_frame, body):
         if verbose:
             print method_frame.delivery_tag, method_frame, header_frame
         print body
@@ -283,7 +284,7 @@ def monitor(url=None, args=None, keys=['#'], exchange='lc-topic'):
     for key in keys:
         channel.queue_bind(queue,
                            exchange=exchange,
-                           outing_key=key,
+                           routing_key=key,
                            arguments=args)
     channel.basic_consume(on_message, queue, no_ack=True)
     try:
@@ -304,6 +305,7 @@ def monitor_cmd():
     parser.add_argument('-H', '--hostname', default='localhost')
     parser.add_argument('-u', '--url',
                         help="Fully qualified url (overrides hostname)")
+    parser.add_argument('-v', '--verbose', action='count')
 
     args = parser.parse_args()
     url = args.url or 'amqp://guest:guest@%s:5672/%%2F' % args.hostname
@@ -314,4 +316,5 @@ def monitor_cmd():
     monitor(keys=args.keys.split(),
             args=binding_args,
             exchange=args.exchange,
-            url=url)
+            url=url,
+            verbose=args.verbose)

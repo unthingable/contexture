@@ -133,9 +133,9 @@ class LoggingContext(object):
         # Construct the log proxy
         self.log = self.LogProxy(self)
 
-        self.update(status="born", **context)
+        self._update(meta=dict(status="born"), context=context)
 
-    def _update(self, msg=[], level=logging.DEBUG, context={}):
+    def _update(self, msg=[], level=logging.DEBUG, context={}, meta={}):
         self.context.update(context)
         obj = dict((k, v) for k, v in context.iteritems()
                    if k not in self._.ignore)
@@ -151,8 +151,6 @@ class LoggingContext(object):
             msg = msg.format(**self.context)
         else:
             msg = None
-        if msg:
-            obj['message'] = msg
 
         # send through backend
         if not self._.silent:
@@ -160,6 +158,10 @@ class LoggingContext(object):
                        'obj': obj,
                        'routing_key': self._.routing_key,
                        'headers': self._.headers}
+            if msg:
+                out_obj['message'] = msg
+            # Careful, don't clobber
+            out_obj.update(meta)
             backend_logger.log(level, out_obj)
 
         # Log log
@@ -215,5 +217,5 @@ class LoggingContext(object):
             # Calling self.update will resurrect us in the middle
             # of dying, causing a loop of death. So, only die once.
             self._.deleted = True
-            self.update(elapsed=(time() - self._.created_at),
-                        status="finished")
+            self._update(context=dict(elapsed=(time() - self._.created_at)),
+                         meta=dict(status="finished"))
