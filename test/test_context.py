@@ -238,6 +238,26 @@ def test_context_emit():
 
 
 @with_setup(setup, teardown)
+def test_wrapped_properties():
+    class Orig(object):
+        foo = 1
+
+        @property
+        def bar(self):
+            return self.foo
+
+    obj = Orig()
+
+    wrapped = context.LoggingContext(obj=obj)
+    ok_(wrapped.bar, 1)
+    wrapped.foo = 2
+    ok_(wrapped.bar, 2)
+    db = collate(emit_buffer)[wrapped._.guid]
+    eq_(db['foo'], 2)
+    ok_('bar' not in db)
+
+
+@with_setup(setup, teardown)
 def test_context_emit_ignore():
     ctx = context.LoggingContext(logger=log, ignore=('foo',))
     prev_log_len = len(stream.getvalue())

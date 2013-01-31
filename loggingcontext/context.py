@@ -79,6 +79,7 @@ class LoggingContext(object):
                  routing_key=None,  # leave empty to use name
                  headers={},        # amqp headers
                  context={},        # initial context
+                 obj=None,          # native object to wrap
                  ignore=[],         # exclude from handling
                  silent=False,      # for using LC from SH
                  logger=None,       # custom logger
@@ -90,6 +91,20 @@ class LoggingContext(object):
         self._.guid = str(uuid.uuid4())
         self._.ignore = tuple(ignore)
         self._.deleted = False
+
+        # An object reference for extended accessors
+        if obj:
+            self._.obj = obj
+        # Some contention below: do we specify wrapped object
+        # explicitly or allow more magic by treating <context> as obj?
+
+        # elif context:
+        #     # Context could be a subclassed dict with property
+        #     # methods, who knows.
+        #     self._.obj = context
+        # -- No, specify obj explicitly if you need it.
+        else:
+            self._.obj = None
 
         # Unnamed contexts: attempt to get a meaningful name
         if name is None:
@@ -167,12 +182,22 @@ class LoggingContext(object):
                 raise AttributeError("Attribute '%s' is reserved"
                                      " (use update())" % name)
         else:
+            # TODO: add a test for this
+            if self._.obj:
+                try:
+                    setattr(self._.obj, name, value)
+                except Exception, e:
+                    if self._.log:
+                        self._.log.exception(e)
+
             self.update(**{name: value})
 
     def __getattr__(self, name):
         if not hasattr(self, 'context'):
             raise Exception("LoggingContext not initialized, call __init__()!")
         if name not in self.context:
+            if self._.obj and hasattr(self._.obj, name):
+                return getattr(self._.obj, name)
             raise AttributeError
         return self.context[name]
 
