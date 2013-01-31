@@ -264,9 +264,10 @@ class AMQPHandler(logging.Handler):
         self.stop()
 
 
-def monitor(url=None, keys=['#'], exchange='lc-topic'):
-    def on_message(channel, method_frame, header_frame, body):
-        print method_frame.delivery_tag, method_frame, header_frame
+def monitor(url=None, args=None, keys=['#'], exchange='lc-topic'):
+    def on_message(channel, method_frame, header_frame, body, verbose=False):
+        if verbose:
+            print method_frame.delivery_tag, method_frame, header_frame
         print body
         print
         # channel.basic_ack(delivery_tag=method_frame.delivery_tag)
@@ -280,10 +281,13 @@ def monitor(url=None, keys=['#'], exchange='lc-topic'):
     result = channel.queue_declare(auto_delete=True)
     queue = result.method.queue
     for key in keys:
-        channel.queue_bind(queue, exchange=exchange, routing_key=key)
+        channel.queue_bind(queue,
+                           exchange=exchange,
+                           outing_key=key,
+                           arguments=args)
     channel.basic_consume(on_message, queue, no_ack=True)
     try:
-        print "Listening for %s on %s on %s" % (keys, exchange, url)
+        print "Listening for %s/%s on %s on %s" % (keys, args, exchange, url)
         channel.start_consuming()
     except KeyboardInterrupt:
         channel.stop_consuming()
@@ -292,13 +296,22 @@ def monitor(url=None, keys=['#'], exchange='lc-topic'):
 
 def monitor_cmd():
     import argparse
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(description='Simple AMQP monitor')
     parser.add_argument('-k', '--keys', default='#', help="binding keys")
-    parser.add_argument('-e', '--exchange', default='lc-topic', help="exchange")
-    parser.add_argument('-H', '--host', default='localhost', help="hostname")
+    parser.add_argument('-a', '--args', nargs='+',
+                        help="binding arguments (key=value pairs)")
+    parser.add_argument('-e', '--exchange', default='lc-topic')
+    parser.add_argument('-H', '--hostname', default='localhost')
     parser.add_argument('-u', '--url',
                         help="Fully qualified url (overrides hostname)")
 
     args = parser.parse_args()
-    url = args.url or 'amqp://guest:guest@%s:5672/%%2F' % args.host
-    monitor(keys=args.keys.split(), exchange=args.exchange, url=url)
+    url = args.url or 'amqp://guest:guest@%s:5672/%%2F' % args.hostname
+    binding_args = None
+    if args.args:
+        binding_args = dict(x.split('=') for x in args.args.split())
+
+    monitor(keys=args.keys.split(),
+            args=binding_args,
+            exchange=args.exchange,
+            url=url)
