@@ -25,6 +25,6 @@ setup(name='loggingcontext',
                                      files=('config.conf',)),
       entry_points="""
         [console_scripts]
-        lcmon=loggingcontext.backend.amqp_handler:monitor_cmd
+        lcmon=loggingcontext.monitor:monitor_cmd
     """
 )
