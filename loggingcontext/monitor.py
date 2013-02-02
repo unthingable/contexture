@@ -39,11 +39,15 @@ def extract_keys(d, keys):
 def monitor(url=None, args=None, keys=['#'], exchange='lc-topic',
             verbose=False, mapkeys=None, pretty=False):
     "Listen to AMQP and print results"
+
     def on_message(channel, method_frame, header_frame, body):
         if verbose:
             print method_frame.delivery_tag, method_frame, header_frame
         if not mapkeys:
-            print body
+            if not pretty:
+                print body
+            else:
+                pp.pprint(json.loads(body))
             print
         else:
             extracted = extract_keys(json.loads(body), mapkeys)
@@ -80,17 +84,21 @@ def monitor(url=None, args=None, keys=['#'], exchange='lc-topic',
 
 def monitor_cmd():
     import argparse
-    parser = argparse.ArgumentParser(description='Simple AMQP monitor')
+    parser = argparse.ArgumentParser(description='Simple AMQP monitor',
+                                     formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument('-k', '--keys', default='#', help="binding keys")
     parser.add_argument('-a', '--args', nargs='+',
                         help="binding arguments (key=value pairs)")
-    parser.add_argument('-e', '--exchange', default='lc-topic')
-    parser.add_argument('-H', '--hostname', default='localhost')
+    parser.add_argument('-e', '--exchange', default='lc-topic',
+                        help='exchange to bind to')
+    parser.add_argument('-H', '--hostname', default='localhost',
+                        help='AMQP server hostname')
     parser.add_argument('-u', '--url',
                         help="Fully qualified url (overrides hostname)")
     parser.add_argument('-m', '--map', nargs='+',
                         help='keys to extract (*key for all matches)')
-    parser.add_argument('-p', '--pretty', nargs='?', help='pretty print')
+    parser.add_argument('-p', '--pretty', action='store_true', default=False,
+                        help='pretty print')
     parser.add_argument('-v', '--verbose', action='count')
 
     args = parser.parse_args()
