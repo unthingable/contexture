@@ -95,6 +95,7 @@ class LoggingContext(object):
         # An object reference for extended accessors
         if obj:
             self._.obj = obj
+            self._.headers['via'] = type(obj)
         # Some contention below: do we specify wrapped object
         # explicitly or allow more magic by treating <context> as obj?
 
