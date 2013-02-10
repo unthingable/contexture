@@ -38,6 +38,7 @@ if not backend_logger.handlers:
     logging.config.fileConfig(config_file)
     backend_logger = logging.getLogger("loggingcontext")
 
+
 # to be used by itself _and_ extended
 class LoggingContext(object):
     '''
