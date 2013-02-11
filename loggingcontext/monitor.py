@@ -67,8 +67,9 @@ class messages(object):
                                     arguments=binding_args)
 
     def __iter__(self):
-        for message in self.channel.consume(self.queue):
-            yield Message(*message)
+        for (method, properties, body) in self.channel.consume(self.queue):
+            yield Message(method, properties, body)
+            self.channel.basic_ack(method.delivery_tag)
 
     def __enter__(self):
         return self.__iter__()
