@@ -1,11 +1,14 @@
 from collections import namedtuple
 from itertools import chain, islice
+import logging
 # Simplejson prefers str over unicode, looks nicer when printed
 import simplejson as json
 import pika
 import pprint
+import sys
 
 
+logging.basicConfig()
 pp = pprint.PrettyPrinter(indent=1, width=80, depth=None, stream=None)
 
 
@@ -13,6 +16,12 @@ pp = pprint.PrettyPrinter(indent=1, width=80, depth=None, stream=None)
 # AMQP stuff, like the handler, but we'll decide later.
 
 Message = namedtuple('Message', 'method properties body')
+
+
+class adict(dict):
+    def __init__(self, *args, **kwargs):
+        super(adict, self).__init__(*args, **kwargs)
+        self.__dict__ = self
 
 
 class messages(object):
@@ -47,29 +56,42 @@ class messages(object):
                  binding_keys=['#'],
                  binding_args=None,
                  exchange='lc-topic',
+                 queue=None,
+                 stdin=False,
                  ):
+        if not stdin:
+            # Set up us the AMQP
+            params = None
+            if url:
+                params = pika.URLParameters(url)
+            self.connection = pika.BlockingConnection(params)
+            self.channel = self.connection.channel()
 
-        # Set us up the AMQP
-        params = None
-        if url:
-            params = pika.URLParameters(url)
-        self.connection = pika.BlockingConnection(params)
-        self.channel = self.connection.channel()
-
-        result = self.channel.queue_declare(auto_delete=True,
-                                            arguments={'x-message-ttl': 60000}
-                                            )
-        self.queue = result.method.queue
-        for key in binding_keys:
-            self.channel.queue_bind(self.queue,
-                                    exchange=exchange,
-                                    routing_key=key,
-                                    arguments=binding_args)
+            qargs = dict(queue=queue) if queue else dict(auto_delete=True)
+            result = self.channel.queue_declare(arguments={'x-message-ttl': 10 * 60 * 1000},
+                                                exclusive=True,
+                                                **qargs
+                                                )
+            self.queue = result.method.queue
+            for key in binding_keys:
+                self.channel.queue_bind(self.queue,
+                                        exchange=exchange,
+                                        routing_key=key,
+                                        arguments=binding_args)
+        self.stdin = stdin
 
     def __iter__(self):
-        for (method, properties, body) in self.channel.consume(self.queue):
-            yield Message(method, properties, body)
-            self.channel.basic_ack(method.delivery_tag)
+        if not self.stdin:
+            for (method, properties, body) in self.channel.consume(self.queue):
+                self.channel.basic_ack(0, multiple=True)
+                yield adict(headers=properties.headers,
+                            rkey=method.routing_key,
+                            object=json.loads(body))
+        else:
+            for line in sys.stdin:
+                if not line.strip():
+                    continue
+                yield adict(json.loads(line))
 
     def __enter__(self):
         return self.__iter__()
@@ -78,11 +100,12 @@ class messages(object):
         self.__del__()
 
     def __del__(self):
-        try:
-            self.channel.cancel()
-            self.connection.close()
-        except:
-            pass
+        if not self.stdin:
+            try:
+                self.channel.cancel()
+                self.connection.close()
+            except:
+                pass
 
 
 class objects(messages):
@@ -96,7 +119,8 @@ class objects(messages):
 
     def __iter__(self):
         for message in messages.__iter__(self):
-            mobj = json.loads(message.body)
+            # mobj = json.loads(message.body)
+            mobj = message.object
             if 'obj' not in mobj:
                 continue
             obj = mobj['obj']
@@ -106,8 +130,8 @@ class objects(messages):
                 # Capture headers/rkey once. Assume they do not change
                 # during the live of the object.
                 collated = dict(object=obj,
-                                headers=message.properties.headers,
-                                rkey=message.method.routing_key)
+                                headers=message.headers,
+                                rkey=message.rkey)
                 self.db[obj_id] = collated
             else:
                 collated['object'].update(obj)
@@ -164,7 +188,13 @@ def monitor_cmd():
     parser.add_argument('-H', '--hostname', default='localhost',
                         help='AMQP server hostname')
     parser.add_argument('-u', '--url',
-                        help="Fully qualified url (overrides hostname)")
+                        help="fully qualified url (overrides hostname)")
+    parser.add_argument('-q', '--queue',
+                        help="create a non-transient queue")
+
+    parser.add_argument('-s', '--stdin', default=False, action='store_true',
+                        help="get input from stdin instead of queue")
+
     parser.add_argument('-k', '--keys', nargs='+',
                         help='keys to extract (*key for all matches)')
     parser.add_argument('-c', '--collate', action='count',
@@ -175,52 +205,55 @@ def monitor_cmd():
 
     args = parser.parse_args()
 
-    url = args.url or 'amqp://guest:guest@%s:5672/%%2F' % args.hostname
-    binding_args = None
-    if args.args:
-        binding_args = {}
-        for k, v in (x.split('=') for x in args.args):
-            if v.isdigit():
-                v = int(v)
-            binding_args[k] = v
-        binding_args['x-match'] = args.xmatch
+    if not args.stdin:
+        url = args.url or 'amqp://guest:guest@%s:5672/%%2F' % args.hostname
+        binding_args = None
+        if args.args:
+            binding_args = {}
+            for k, v in (x.split('=') for x in args.args):
+                if v.isdigit():
+                    v = int(v)
+                binding_args[k] = v
+            binding_args['x-match'] = args.xmatch
 
-    print "Listening for %s/%s on %s on %s" % (args.rkeys,
-                                               binding_args,
-                                               args.exchange,
-                                               url)
+        print >> sys.stderr, ("Listening for %s/%s on %s on %s" %
+                              (args.rkeys,
+                               binding_args,
+                               args.exchange,
+                               url))
+
+        stream_args = dict(url=url,
+                           binding_keys=args.rkeys,
+                           binding_args=binding_args,
+                           exchange=args.exchange)
+    else:
+        print >> sys.stderr, "Reading from stdin"
+        stream_args = dict(stdin=True)
 
     def print_(s):
         if args.pretty:
             pp.pprint(s)
         else:
-            print s
+            print json.dumps(s)
 
     def on_message(message):
-        (method, properties, body) = message
-        if args.verbose:
-            print method.delivery_tag, method, properties
-        if not args.keys:
-            if not args.pretty:
-                print body
-            else:
-                pp.pprint(json.loads(body))
-            print
-        else:
-            extracted = extract_keys(json.loads(body), args.keys)
-            print_(extracted)
-            print
+        # (method, properties, body) = message
+        out = adict(object=message.object,
+                    headers=message.headers,
+                    rkey=message.rkey)
+        if args.keys:
+            out.object = extract_keys(out.object, args.keys)
+        if not args.verbose:
+            out = out.object
+
+        print_(out)
+        print
 
     def on_object(obj):
         if args.keys:
             obj = extract_keys(obj, args.keys)
         print_(obj)
         print
-
-    stream_args = dict(url=url,
-                       binding_keys=args.rkeys,
-                       binding_args=binding_args,
-                       exchange=args.exchange)
 
     try:
         if args.collate:
@@ -234,3 +267,4 @@ def monitor_cmd():
             handle(item)
     except KeyboardInterrupt:
         del stream_iter
+        print >> sys.stderr, 'Bye.'
