@@ -26,5 +26,6 @@ setup(name='loggingcontext',
       entry_points="""
         [console_scripts]
         lcmon=loggingcontext.monitor:monitor_cmd
+        lcdump=loggingcontext.utils.db:main
     """
 )
