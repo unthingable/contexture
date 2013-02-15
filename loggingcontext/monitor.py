@@ -6,6 +6,7 @@ import simplejson as json
 import pika
 import pprint
 import sys
+import time
 
 
 logging.basicConfig()
@@ -108,6 +109,10 @@ class messages(object):
                 pass
 
 
+def strtime(t):
+    return time.strftime('%F %H:%M:%S', time.localtime(int(t)))
+
+
 class objects(messages):
     '''
     Like messages(), but extract collated objects from message stream.
@@ -133,11 +138,14 @@ class objects(messages):
                                 headers=message.headers,
                                 rkey=message.rkey)
                 self.db[obj_id] = collated
+                collated['start'] = strtime(mobj['time_out'])
             else:
                 collated['object'].update(obj)
             if 'finished' == mobj.get('status', None):
                 collated['elapsed'] = mobj.get('elapsed', None)
                 collated['id'] = obj_id
+                collated['end'] = strtime(mobj['time_out'])
+
                 yield collated if self.verbose else collated['object']
                 del self.db[obj_id]
 
