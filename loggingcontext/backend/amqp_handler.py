@@ -243,8 +243,8 @@ class AMQPHandler(logging.Handler):
         obj['time_out'] = time.time()
         obj['time_in'] = record.created
         # A little redundant, but, again, why not
-        obj['elapsed'] = (obj['time_out'] - obj['time_in'])
-        obj['queue'] = self._queue.qsize()
+        obj['qtime'] = (obj['time_out'] - obj['time_in'])
+        obj['qlen'] = self._queue.qsize()
         obj['handler_id'] = self._guid
 
         headers = self._headers.copy()

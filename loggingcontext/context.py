@@ -220,5 +220,5 @@ class LoggingContext(object):
             # Calling self.update will resurrect us in the middle
             # of dying, causing a loop of death. So, only die once.
             self._.deleted = True
-            self._update(context=dict(elapsed=(time() - self._.created_at)),
-                         meta=dict(status="finished"))
+            self._update(meta=dict(status="finished",
+                                   elapsed=(time() - self._.created_at)))

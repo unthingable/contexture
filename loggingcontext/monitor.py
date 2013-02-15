@@ -136,6 +136,8 @@ class objects(messages):
             else:
                 collated['object'].update(obj)
             if 'finished' == mobj.get('status', None):
+                collated['elapsed'] = mobj.get('elapsed', None)
+                collated['id'] = obj_id
                 yield collated if self.verbose else collated['object']
                 del self.db[obj_id]
 
@@ -225,7 +227,8 @@ def monitor_cmd():
         stream_args = dict(url=url,
                            binding_keys=args.rkeys,
                            binding_args=binding_args,
-                           exchange=args.exchange)
+                           exchange=args.exchange,
+                           queue=args.queue)
     else:
         print >> sys.stderr, "Reading from stdin"
         stream_args = dict(stdin=True)
