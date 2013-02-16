@@ -117,9 +117,14 @@ class objects(messages):
     '''
     Like messages(), but extract collated objects from message stream.
     '''
-    def __init__(self, verbose=False, **kw):
+    def __init__(self, verbose=False, messages=False, **kw):
+        '''
+        verbose: include routing_key and headers
+        messages: include the underlying messages
+        '''
         messages.__init__(self, **kw)
         self.verbose = verbose
+        self.messages = messages
         self.db = {}
 
     def __iter__(self):
@@ -141,6 +146,8 @@ class objects(messages):
                 collated['start'] = strtime(mobj['time_out'])
             else:
                 collated['object'].update(obj)
+            if self.messages:
+                collated.setdefault('messages', []).append(message)
             if 'finished' == mobj.get('status', None):
                 collated['elapsed'] = mobj.get('elapsed', None)
                 collated['id'] = obj_id
