@@ -21,8 +21,6 @@ display
 html
 itemid
 length
-merchant_id
-merchant_product_id
 num_avail
 offer_id
 page
@@ -279,7 +277,7 @@ def test_emit_msg():
 import time
 def real_emit():
     with context.LoggingContext(context={"foo": 123},
-                                headers={"merchant_id": "123"}) as ctx:
+                                headers={"my_id": "123"}) as ctx:
         for x in range(600):
             ctx.real_deal = x
             # time.sleep(0.01)
