@@ -22,7 +22,8 @@ snaplock = threading.Lock()
 
 
 def counter():
-    for message in monitor.messages(binding_keys=['#']):
+    for message in monitor.messages(binding_keys=['#'],
+                                    queue='analytics.errorcount'):
         snaplock.acquire()
         obj = message['object']
         object_id = message['headers']['object_id']
