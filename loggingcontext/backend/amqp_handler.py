@@ -9,6 +9,7 @@ import time
 import threading
 import uuid
 
+# Don't make this __name__. Used by logging config to wire amqp handler.
 LOGGER = logging.getLogger()
 
 
@@ -34,7 +35,7 @@ class AMQPHandler(logging.Handler):
         self._exchange = exchange
         self._headers = headers
         self._type = exchange_type
-        self._queue = Queue(maxsize=100000)
+        self._queue = Queue(maxsize=1000)
         self._running = True
         self._guid = str(uuid.uuid4())
         env = dict(host=socket.gethostname(),
@@ -43,9 +44,9 @@ class AMQPHandler(logging.Handler):
                    )
         self._headers['hostname'] = env['host']
 
-        thread = threading.Thread(target=self.run)
-        thread.daemon = True
-        thread.start()
+        self.thread = threading.Thread(target=self.run)
+        self.thread.daemon = True
+        self.thread.start()
 
         self.emit(faux_record(env))
 
@@ -63,9 +64,10 @@ class AMQPHandler(logging.Handler):
         :param pika.frame.Method method_frame: The method frame from RabbitMQ
 
         """
-        LOGGER.warning('Server closed connection, reopening: (%s) %s',
-                       method_frame.method.reply_code,
-                       method_frame.method.reply_text)
+        LOGGER.warning('Server closed connection, reopening: (%s)',
+                       method_frame,
+                       #method_frame.method.reply_text
+                       )
         self._channel = None
         self._connection = self.connect()
 
@@ -174,16 +176,18 @@ class AMQPHandler(logging.Handler):
         self._channel.confirm_delivery(self.on_delivery_confirmation)
 
     def run(self):
-        try:
-            self._running = True
-            self._connection = self.connect()
-            self._connection.ioloop.start()
-        except pika.exceptions.AMQPConnectionError:
-            self._running = False
-            # Free up queued objects
-            with self._queue.mutex:
-                self._queue.queue.clear()
-            raise
+        while True:
+            try:
+                self._running = True
+                self._connection = self.connect()
+                self._connection.ioloop.start()
+            except pika.exceptions.AMQPConnectionError:
+                self._running = False
+                # Free up queued objects
+                with self._queue.mutex:
+                    self._queue.queue.clear()
+                LOGGER.info('Sleeping for 10 and retrying')
+                time.sleep(10)
 
     def close_channel(self):
         """Invoke this command to close the channel with RabbitMQ by sending
@@ -234,8 +238,8 @@ class AMQPHandler(logging.Handler):
             except Empty:
                 break
             self.publish_record(item)
-        if self._running:
-            self._connection.add_timeout(self.INTERVAL, self.schedule_next_message)
+        # if self._running:
+        self._connection.add_timeout(self.INTERVAL, self.schedule_next_message)
 
     def publish_record(self, record):
         obj = record.msg
