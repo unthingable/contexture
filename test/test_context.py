@@ -60,6 +60,15 @@ def collate(stream):
     return db
 
 
+def collated(stream, key=None):
+    'Convenience wrapper, return the first collated object.'
+    db = collate(stream)
+    if key:
+        return db[key]
+    else:
+        return db.values()[0]
+
+
 def test_collate():
     stream = [dict(obj={"foo": 1}, obj_id=5)]
     db = collate(stream)
@@ -208,6 +217,19 @@ def test_logging_death():
 
 
 @with_setup(setup, teardown)
+def test_lifecycle_noargs():
+    eq_(len(emit_buffer), 0)
+    ctx = context.LoggingContext()
+    eq_(len(emit_buffer), 1)
+    ctx.foo = 1
+    eq_(len(emit_buffer), 2)
+    del ctx
+    eq_(len(emit_buffer), 3)
+    print "Emitted:"
+    print '\n'.join(str(x) for x in emit_buffer)
+
+
+@with_setup(setup, teardown)
 def test_context_emit():
     # We can supply initial context
     ctx = context.LoggingContext(logger=log, context=dict(x=4))
@@ -270,12 +292,12 @@ def test_context_emit_ignore():
 def test_emit_msg():
     ctx = context.LoggingContext(logger=log)
     ctx.log.debug('ohai')
-    db = collate(emit_buffer)
-    eq_(db[ctx._.guid]['message'], 'ohai')
+    #db = collate(emit_buffer)
+    ok_(any(x.get('message', '') == 'ohai' for x in emit_buffer))
 
 
-import time
 def real_emit():
+    import time
     with context.LoggingContext(context={"foo": 123},
                                 headers={"my_id": "123"}) as ctx:
         for x in range(600):
@@ -283,6 +305,36 @@ def real_emit():
             # time.sleep(0.01)
         # Let the handler finish
     time.sleep(2)
+
+
+@with_setup(setup, teardown)
+def test_wrapped_object_attribute_access():
+    class Blah(object):
+        x = 1
+
+        @property
+        def y(self):
+            return 2
+
+        def f(self):
+            return 3
+
+    blah = Blah()
+    ctx = context.LoggingContext(obj=blah)
+    # Setting nonexisting attribute:
+    ctx.foo = 123
+    eq_(ctx.foo, 123)
+    # Confirm emit
+    eq_(collated(emit_buffer)['foo'], 123)
+    # Properties and attributes still work
+    eq_(ctx.x, 1)
+    eq_(ctx.y, 2)
+    # Setting a nonexisting attribute
+    ctx.x = 8
+    eq_(ctx.x, 8)
+    eq_(blah.x, 8)
+    # Confirm emit
+    eq_(collated(emit_buffer)['x'], 8)
 
 
 if __name__ == '__main__':
