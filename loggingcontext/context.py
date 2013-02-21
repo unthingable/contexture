@@ -143,7 +143,7 @@ class LoggingContext(object):
         obj = dict((k, v) for k, v in context.iteritems()
                    if k not in self._.ignore)
 
-        if not msg and not obj:
+        if not msg and not (obj or meta):
             return
 
         if msg:
