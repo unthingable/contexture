@@ -58,7 +58,8 @@ class messages(object):
                  binding_args=None,
                  exchange='lc-topic',
                  queue=None,
-                 stdin=False,
+                 stdin=None,            # read from a stream instead of a queue
+                 raw=False              # skip json.loads()
                  ):
         if not stdin:
             # Set up us the AMQP
@@ -80,6 +81,7 @@ class messages(object):
                                         routing_key=key,
                                         arguments=binding_args)
         self.stdin = stdin
+        self.raw = raw
 
     def __iter__(self):
         if not self.stdin:
@@ -87,9 +89,9 @@ class messages(object):
                 self.channel.basic_ack(0, multiple=True)
                 yield adict(headers=properties.headers,
                             rkey=method.routing_key,
-                            object=json.loads(body))
+                            object=body if self.raw else json.loads(body))
         else:
-            for line in sys.stdin:
+            for line in self.stdin:
                 if not line.strip():
                     continue
                 yield adict(json.loads(line))
@@ -136,19 +138,21 @@ class objects(messages):
             obj = mobj['obj']
             obj_id = mobj['obj_id']
             collated = self.db.get(obj_id, None)
+            status = mobj.get('status', None)
             if not collated:
                 # Capture headers/rkey once. Assume they do not change
                 # during the live of the object.
                 collated = dict(object=obj,
                                 headers=message.headers,
                                 rkey=message.rkey)
-                self.db[obj_id] = collated
                 collated['start'] = strtime(mobj['time_out'])
+                if status == 'born':
+                    self.db[obj_id] = collated
             else:
                 collated['object'].update(obj)
             if self.capture_messages:
                 collated.setdefault('messages', []).append(message)
-            if 'finished' == mobj.get('status', None):
+            if mobj.get('status', None) in ('finished', 'transient'):
                 collated['elapsed'] = mobj.get('elapsed', None)
                 collated['id'] = obj_id
                 collated['end'] = strtime(mobj['time_out'])
@@ -246,7 +250,7 @@ def monitor_cmd():
                            queue=args.queue)
     else:
         print >> sys.stderr, "Reading from stdin"
-        stream_args = dict(stdin=True)
+        stream_args = dict(stdin=sys.stdin)
 
     def print_(s):
         if args.pretty:
