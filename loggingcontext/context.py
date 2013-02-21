@@ -81,6 +81,7 @@ class LoggingContext(object):
                  headers={},        # amqp headers
                  context={},        # initial context
                  obj=None,          # native object to wrap
+                 guid=None,         # provide your own ID
                  ignore=[],         # exclude from handling
                  silent=False,      # for using LC from SH
                  logger=None,       # custom logger
@@ -90,7 +91,7 @@ class LoggingContext(object):
         self._ = _dummy_obj()
         self._.headers = headers
         self._.silent = silent
-        self._.guid = str(uuid.uuid4())
+        self._.guid = guid or str(uuid.uuid4())
         self._.ignore = tuple(ignore)
         self._.deleted = False
         self._.transient = transient

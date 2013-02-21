@@ -217,6 +217,12 @@ def test_logging_death():
 
 
 @with_setup(setup, teardown)
+def test_custom_id():
+    context.LoggingContext(guid='asdf')
+    ok_('asdf' in collate(emit_buffer))
+
+
+@with_setup(setup, teardown)
 def test_lifecycle_noargs():
     eq_(len(emit_buffer), 0)
     ctx = context.LoggingContext()
