@@ -336,6 +336,13 @@ def test_wrapped_object_attribute_access():
     # Confirm emit
     eq_(collated(emit_buffer)['x'], 8)
 
+    # And now for something completely different:
+    eq_(ctx.f(), 3)
+    # This will shadow Blah.f():
+    ctx.f = 0
+    eq_(ctx.f, 0)
+    eq_(collated(emit_buffer)['f'], 0)
+
 
 if __name__ == '__main__':
     print 'real_emit()'
