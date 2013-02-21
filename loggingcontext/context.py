@@ -84,6 +84,7 @@ class LoggingContext(object):
                  ignore=[],         # exclude from handling
                  silent=False,      # for using LC from SH
                  logger=None,       # custom logger
+                 transient=False,   # transient object
                  ):
         self.context = {}
         self._ = _dummy_obj()
@@ -92,6 +93,7 @@ class LoggingContext(object):
         self._.guid = str(uuid.uuid4())
         self._.ignore = tuple(ignore)
         self._.deleted = False
+        self._.transient = transient
 
         # An object reference for extended accessors
         if obj:
@@ -136,7 +138,8 @@ class LoggingContext(object):
         # Construct the log proxy
         self.log = self.LogProxy(self)
 
-        self._update(meta=dict(status="born"), context=context)
+        status = transient and 'transient' or 'born'
+        self._update(meta=dict(status=status), context=context)
 
     def _update(self, msg=[], level=logging.DEBUG, context={}, meta={}):
         self.context.update(context)
@@ -216,7 +219,7 @@ class LoggingContext(object):
         self.__del__()
 
     def __del__(self):
-        if self._ and not self._.deleted:
+        if self._ and not self._.deleted and not self._.transient:
             # Calling self.update will resurrect us in the middle
             # of dying, causing a loop of death. So, only die once.
             self._.deleted = True

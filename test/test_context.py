@@ -344,6 +344,14 @@ def test_wrapped_object_attribute_access():
     eq_(collated(emit_buffer)['f'], 0)
 
 
+@with_setup(setup, teardown)
+def test_transient_objects():
+    transient = context.LoggingContext(transient=True, context={'x': 1})
+    eq_(len(emit_buffer), 1)
+    del transient
+    eq_(len(emit_buffer), 1)
+
+
 if __name__ == '__main__':
     print 'real_emit()'
     real_emit()
