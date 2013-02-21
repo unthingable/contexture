@@ -35,7 +35,7 @@ class AMQPHandler(logging.Handler):
         self._exchange = exchange
         self._headers = headers
         self._type = exchange_type
-        self._queue = Queue(maxsize=1000)
+        self._queue = Queue(maxsize=5000)
         self._running = True
         self._guid = str(uuid.uuid4())
         env = dict(host=socket.gethostname(),
