@@ -97,12 +97,12 @@ def text_frame(nreqs=10, nerrors=10):
     return out, 'text/plain'
 
 
-def json_frame():
+def json_frame(prefix):
     out = {}
     for row in frame():
         out[row['object_id']] = dict(requests=row['requests'][0],
                                        errors=row['errors'][0])
-    return '?(%s)' % json.dumps(out), 'application/json'
+    return '%s(%s)' % (prefix, json.dumps(out)), 'application/javascript'
 
 
 def start(target):
@@ -118,10 +118,10 @@ start(snappy)
 
 def app(environ, start_response):
     """Simplest possible application object"""
+    q = parse_qs(environ['QUERY_STRING'])
     if environ['PATH_INFO'] == "/jsonp":
-        data, ct = json_frame()
+        data, ct = json_frame(q['callback'][0])
     else:
-        q = parse_qs(environ['QUERY_STRING'])
         data, ct = text_frame(**dict((k, int(v[0])) for k, v in q.items()))
     status = '200 OK'
     response_headers = [
