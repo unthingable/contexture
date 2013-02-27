@@ -250,6 +250,8 @@ db.mystatus = 'and now that'
 And on the other end you might do (see the section on _lcmon_ below).
 
     $ lcmon -v -r faux_db -k obj
+    {"mystatus": "now this"}
+    {"mystatus": "and now that"}
 
 ### Objects with custom IDs
 
