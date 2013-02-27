@@ -1,8 +1,8 @@
 > _Many machines on Ix._
 
-LoggingContext is a thin framework for sharing objects' current state. This is useful for distributed structured logging, monitoring, data propagation/collection, synchronization and general elevated states of awareness.
+LoggingContext is a thin framework for sharing objects' current state across network. This is useful for distributed structured logging, monitoring, data propagation/collection, synchronization and general elevated states of awareness.
 
-LoggingContext is built on a messaging system (powered by RabbitMQ, see the tail of this document). It solves many problems associated with log parsing and directly coupled systems.
+LoggingContext is built on a messaging system (powered by RabbitMQ, see the tail of this document). It solves problems associated with log parsing and directly coupled systems.
 
 <!---
 ### Why message queues? I can put my object directly into Cassandra/Senty/whatever.
@@ -114,7 +114,7 @@ ctx.update(log='something')
 print ctx.context['log']
 ```
 
-Note the use of `ctx.update()` instead of `ctx.context.update()`. Don't worry about accidentally using a reserved keyword, LoggingContext will not let you do it wrong.
+Note the use of `ctx.update()` instead of `ctx.context.update()`. Don't worry about accidentally using a reserved keyword, LoggingContext will not let you.
 
 ### Subclass
 
@@ -125,10 +125,33 @@ You can sublass LoggingContext. It will try to derive a name/routing_key from th
 You have an existing object that you want to monitor and do not want to reimplement it as a subclass of LC. No problem, wrap it:
 
 ```python
+class MyObj(object):
+    x = 1
+
+    @property
+    def y(self):
+        return 2
+
+    def f(self):
+        return 3
+
+myobject = MyObj()
+original_object = myobject
+
 myobject = LoggingContext(obj=myobject)
+myobject.f() == 3                       # True
+myobject.y == 2                         # True
+myobject.x == 1                         # True
+
+myobject.y = 10                         # works! y is now part of context, shadowing the original
+myobject.y == 10                        # True
+original_object.y == 2                  # True
+
+myobject.x = 111
+myobject.x == original_object.x == 1    # True, as expected
 ```
 
-This wrapped object behaves like the original object (function calls, @properties, etc.), but it is also a context: it will capture all attribute assignments and allow creation of new attributes.
+This wrapped object behaves like the original object (function calls, @properties, etc.), but it is also a context: it will capture all attribute assignments and allow creation of new attributes (shadowing the existing read-only ones).
 
 In other words, wrap an existing object in LoggingContext and it will do its best to make sure neither the object nor the code that is using it notice a difference.
 
@@ -136,7 +159,7 @@ In other words, wrap an existing object in LoggingContext and it will do its bes
 
 ### Exclusions
 
-You have a complex dict but you only care to broadcast a part of it. Add it to `ignore` and it will not be reported.
+You have a complex dict but you only care to broadcast a part of it. Add the private bits to `ignore` and it will not be reported.
 
 ```python
 mydict = dict(x=1, y=2, privatestuff=whatever)
@@ -178,7 +201,7 @@ Note that this will work even without an AMQP handler configured.
 
 Data must be JSON serializeable.
 
-### pika.exceptions.AMQPConnectionError: 1
+### pika.exceptions.AMQPConnectionError
 
 This means the backend could not connect to the broker. This harms nothing, only means your messages won't make it upstream. See below.
 
@@ -197,8 +220,7 @@ exiting your program.
 
 ### Unicode headers
 
-Pika does not like it when headers are in unicode. If using `unicode_literals`,
-be sure to do something like:
+Pika does not like your unicode headers. If using `unicode_literals`, be sure to do something like:
 
 ```python
 LoggingContext(headers={b'myheader': b'something'})

@@ -276,11 +276,17 @@ def test_wrapped_properties():
 
     wrapped = context.LoggingContext(obj=obj)
     ok_(wrapped.bar, 1)
+    eq_(wrapped.foo, 1)
     wrapped.foo = 2
     ok_(wrapped.bar, 2)
-    db = collate(emit_buffer)[wrapped._.guid]
+    db = collated(emit_buffer)
     eq_(db['foo'], 2)
     ok_('bar' not in db)
+
+    # Setting a readonly property of wrapped object:
+    wrapped.bar = 3
+    eq_(collated(emit_buffer)['bar'], 3)
+    eq_(obj.bar, 2)
 
 
 @with_setup(setup, teardown)
