@@ -199,19 +199,19 @@ def monitor_cmd():
     import argparse
     parser = argparse.ArgumentParser(description='Simple AMQP monitor',
                                      formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    parser.add_argument('-r', '--rkeys', default='#', help="routing keys")
-    parser.add_argument('-a', '--args', nargs='+',
-                        help="binding arguments (key=value pairs)")
-    parser.add_argument('-x', '--xmatch', default='all', choices=('all', 'any'),
-                        help='x-match')
-    parser.add_argument('-e', '--exchange', default='lc-topic',
-                        help='exchange to bind to')
     parser.add_argument('-H', '--hostname', default='localhost',
                         help='AMQP server hostname')
     parser.add_argument('-u', '--url',
                         help="fully qualified url (overrides hostname)")
+    parser.add_argument('-e', '--exchange', default='lc-topic',
+                        help='exchange to bind to')
     parser.add_argument('-q', '--queue',
                         help="create a non-transient queue")
+    parser.add_argument('-r', '--rkey', default=['#'], nargs='+', help="routing keys")
+    parser.add_argument('-a', '--arg', nargs='+',
+                        help="binding arguments (key=value pairs)")
+    parser.add_argument('-x', '--xmatch', default='all', choices=('all', 'any'),
+                        help='x-match')
 
     parser.add_argument('-s', '--stdin', default=False, action='store_true',
                         help="get input from stdin instead of queue")
@@ -227,24 +227,25 @@ def monitor_cmd():
     args = parser.parse_args()
 
     if not args.stdin:
+        # TODO: add env variable for amqp url
         url = args.url or 'amqp://guest:guest@%s:5672/%%2F' % args.hostname
         binding_args = None
-        if args.args:
+        if args.arg:
             binding_args = {}
-            for k, v in (x.split('=') for x in args.args):
+            for k, v in (x.split('=') for x in args.arg):
                 if v.isdigit():
                     v = int(v)
                 binding_args[k] = v
             binding_args['x-match'] = args.xmatch
 
         print >> sys.stderr, ("Listening for %s/%s on %s on %s" %
-                              (args.rkeys,
+                              (args.rkey,
                                binding_args,
                                args.exchange,
                                url))
 
         stream_args = dict(url=url,
-                           binding_keys=args.rkeys,
+                           binding_keys=args.rkey,
                            binding_args=binding_args,
                            exchange=args.exchange,
                            queue=args.queue)
