@@ -364,6 +364,27 @@ def test_transient_objects():
     eq_(len(emit_buffer), 1)
 
 
+@with_setup(setup, teardown)
+def test_context_linking_by_id():
+    ca = context.LoggingContext(guid='a')
+    cb = context.LoggingContext(guid='b')
+    ca.x = 1
+    cb.linked = ca
+    eq_(collate(emit_buffer)['b']['linked'], 'a')
+    eq_(cb.linked.x, 1)
+
+
+# def flood_test():
+#     import time
+#     with context.LoggingContext(name='test_flood'
+#                                 headers={"my_id": "123"}) as ctx:
+#         for x in range(600):
+#             ctx.real_deal = x
+#             # time.sleep(0.01)
+#         # Let the handler finish
+#     time.sleep(2)
+
+
 if __name__ == '__main__':
     print 'real_emit()'
     real_emit()
