@@ -333,7 +333,7 @@ Included in _loggingcontext_ package is a handy monitoring utility.
       -e EXCHANGE, --exchange EXCHANGE
                             exchange to bind to (default: lc-topic)
       -q QUEUE, --queue QUEUE
-                            create a non-transient queue (default: None)
+                            consume from an existing queue (default: None)
       -r RKEY [RKEY ...], --rkey RKEY [RKEY ...]
                             routing keys (default: ['#'])
       -a ARG [ARG ...], --arg ARG [ARG ...]
@@ -360,15 +360,11 @@ This will expand to a default URL of `amqp://guest:guest@<hostname>:5672/%2F`. A
 
 ### -q, --queue
 
-> **Peligro!** The use of this option requires manually mucking with RabbitMQ. Don't be the one who broke our messaging backend.
+Consume from an existing queue.
 
-Use when you want your messages to survive a restart of your particular _lcmon_ instance, for example. But carefully.
+By default, _lcmon_ creates an anonymous queue which disappears after the connection is closed (this happens _almost_ always). You can declare a more permanent queue and have messages survive _lcmon_ and even broker restarts.
 
-By default, _lcmon_ creates an anonymous queue which disappears after the connection is closed (this happens _almost_ always). When a queue name is given, _lcmon_ will create it without `auto_delete` option if it doesn't exist already.
-
-Remember that:
-* the queue names are global across the given AMQP virtual host; and
-* queues must be deleted manually.
+**Warning!** Take care to not consume from queues not belonging to you. This is a destructive operation.
 
 ### -r, --rkeys
 

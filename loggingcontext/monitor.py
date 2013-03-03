@@ -69,17 +69,21 @@ class messages(object):
             self.connection = pika.BlockingConnection(params)
             self.channel = self.connection.channel()
 
-            qargs = dict(queue=queue) if queue else dict(auto_delete=True)
-            result = self.channel.queue_declare(arguments={'x-message-ttl': 10 * 60 * 1000},
-                                                exclusive=True,
-                                                **qargs
-                                                )
-            self.queue = result.method.queue
-            for key in binding_keys:
-                self.channel.queue_bind(self.queue,
-                                        exchange=exchange,
-                                        routing_key=key,
-                                        arguments=binding_args)
+            if queue:
+                self.channel.queue_declare(queue=queue, passive=True)
+                self.queue = queue
+            else:
+                result = self.channel.queue_declare(
+                    arguments={'x-message-ttl': 10 * 60 * 1000},
+                    exclusive=True,
+                    auto_delete=True
+                    )
+                self.queue = result.method.queue
+                for key in binding_keys:
+                    self.channel.queue_bind(self.queue,
+                                            exchange=exchange,
+                                            routing_key=key,
+                                            arguments=binding_args)
         self.stdin = stdin
         self.raw = raw
 
@@ -206,7 +210,7 @@ def monitor_cmd():
     parser.add_argument('-e', '--exchange', default='lc-topic',
                         help='exchange to bind to')
     parser.add_argument('-q', '--queue',
-                        help="create a non-transient queue")
+                        help="consume from an existing queue")
     parser.add_argument('-r', '--rkey', default=['#'], nargs='+', help="routing keys")
     parser.add_argument('-a', '--arg', nargs='+',
                         help="binding arguments (key=value pairs)")

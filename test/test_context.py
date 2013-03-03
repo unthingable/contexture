@@ -374,17 +374,35 @@ def test_context_linking_by_id():
     eq_(cb.linked.x, 1)
 
 
-# def flood_test():
-#     import time
-#     with context.LoggingContext(name='test_flood'
-#                                 headers={"my_id": "123"}) as ctx:
-#         for x in range(600):
-#             ctx.real_deal = x
-#             # time.sleep(0.01)
-#         # Let the handler finish
-#     time.sleep(2)
+def flood_test():
+    import time
+    import os
+    import gzip
+    from itertools import islice, cycle, ifilter
+    import resource
+
+    from loggingcontext.backend import amqp_handler
+    logging.basicConfig(level=logging.DEBUG)
+
+    print "SEVERELY flooding emitter with over 9000 messages"
+    print "Starting with %sK" % resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
+    fixture = os.path.join(os.path.dirname(__file__), 'fixtures/bigobjects.json.gz')
+    cnt = 0
+    try:
+        handler = context.backend_logger.handlers[0]
+        for obj in islice(cycle(ifilter(None, gzip.open(fixture))), handler.MAXQUEUE * 2 + 5):
+            obj = json.loads(obj)['object']
+            handler.emit(amqp_handler.faux_record(obj))
+            cnt += 1
+            # Throttling this just a little prevents the overflow
+            # time.sleep(0.0001)
+    except Exception:
+        print obj
+        raise
+    print 'pushed %s' % cnt
+    time.sleep(2)
 
 
 if __name__ == '__main__':
-    print 'real_emit()'
-    real_emit()
+    print 'flood_test()'
+    flood_test()
