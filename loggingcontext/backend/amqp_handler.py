@@ -3,6 +3,7 @@ import logging
 import os
 import pika
 from Queue import Queue, Full, Empty
+import resource
 import socket
 import sys
 import time
@@ -29,13 +30,14 @@ def faux_record(obj):
 class AMQPHandler(logging.Handler):
 
     INTERVAL = 1
+    MAXQUEUE = 300
 
     def __init__(self, url, exchange='lc-topic', exchange_type='topic', headers={}):
         self._url = url
         self._exchange = exchange
         self._headers = headers
         self._type = exchange_type
-        self._queue = Queue(maxsize=5000)
+        self._queue = Queue(self.MAXQUEUE)
         self._running = True
         self._guid = str(uuid.uuid4())
         env = dict(host=socket.gethostname(),
@@ -184,8 +186,8 @@ class AMQPHandler(logging.Handler):
             except pika.exceptions.AMQPConnectionError:
                 self._running = False
                 # Free up queued objects
-                with self._queue.mutex:
-                    self._queue.queue.clear()
+                # with self._queue.mutex:
+                #     self._queue.queue.clear()
                 LOGGER.info('Sleeping for 10 and retrying')
                 time.sleep(10)
 
@@ -226,10 +228,11 @@ class AMQPHandler(logging.Handler):
         try:
             self._queue.put_nowait(record)
         except Full:
-            LOGGER.warning('Queue full, discarding')
+            LOGGER.warning('Queue full, discarding. Used %sK',
+                           resource.getrusage(resource.RUSAGE_SELF).ru_maxrss)
 
-    def filter(self, record):
-        return int(self._running)
+    # def filter(self, record):
+    #     return int(self._running)
 
     def schedule_next_message(self):
         while True:
