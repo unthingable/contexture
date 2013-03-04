@@ -259,11 +259,15 @@ class AMQPHandler(logging.Handler):
         # What happends if destination is None?
         destination = obj.pop('routing_key', 'default')
         exchange = obj.pop('exchange', self._exchange)
-        message = json.dumps(obj)
 
         properties = pika.BasicProperties(app_id='loggingcontext.amqphandler',
                                           content_type='text/plain',
                                           headers=headers)
+        try:
+            message = json.dumps(obj, default=lambda x: repr(x))
+        except Exception, e:
+            message = json.dumps(dict(error=repr(e)))
+
         self._channel.basic_publish(exchange, destination,
                                     message, properties)
 
