@@ -27,7 +27,7 @@ with LoggingContext(context=dict(foo=1)) as ctx:
 class _dummy_obj:
     pass
 
-backend_logger = logging.getLogger("loggingcontext")
+backend_logger = logging.getLogger("loggingcontext.backend")
 
 # See if we're properly configured
 if not backend_logger.handlers:
