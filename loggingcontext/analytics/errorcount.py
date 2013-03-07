@@ -25,23 +25,24 @@ def counter():
     for message in monitor.messages(binding_keys=['#'],
                                     queue='analytics.errorcount'):
         snaplock.acquire()
-        obj = message['object']
-        object_id = message['headers']['object_id']
-        if obj.get('status', '') == 'born':
-            running_requests[object_id] += 1
-        elif obj.get('status', '') == 'finished':
-            if running_requests[object_id] > 0:
-                running_requests[object_id] -= 1
-        if 'error' in str(message):
-            running_errors[object_id] += 1
+        if 'item_id' in message['headers']:
+            obj = message['object']
+            item_id = message['headers']['item_id']
+            if obj.get('status', '') == 'born':
+                running_requests[item_id] += 1
+            elif obj.get('status', '') == 'finished':
+                if running_requests[item_id] > 0:
+                    running_requests[item_id] -= 1
+            if 'error' in str(message):
+                running_errors[item_id] += 1
         snaplock.release()
 
 
 def snapshot():
     snaplock.acquire()
-    object_ids = set(errors.keys())
-    object_ids.update(running_requests.keys())
-    for mid in object_ids:
+    item_ids = set(errors.keys())
+    item_ids.update(running_requests.keys())
+    for mid in item_ids:
         eq = errors[mid]
         rq = requests[mid]
         eq.appendleft(running_errors[mid])
@@ -63,11 +64,11 @@ def snappy():
 def frame():
     'Current counts, by object_id'
     snaplock.acquire()
-    object_ids = set(errors.keys())
-    object_ids.update(running_requests.keys())
+    item_ids = set(errors.keys())
+    item_ids.update(running_requests.keys())
     out = []
-    for mid in object_ids:
-        result = dict(object_id=mid,
+    for mid in item_ids:
+        result = dict(item_id=mid,
                       errors=errors.get(mid, [0, ]),
                       requests=requests.get(mid, [0, ]))
         out.append(result)

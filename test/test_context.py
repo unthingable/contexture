@@ -374,7 +374,7 @@ def test_context_linking_by_id():
     eq_(cb.linked.x, 1)
 
 
-def flood_test():
+def flood():
     import time
     import os
     import gzip
@@ -404,5 +404,5 @@ def flood_test():
 
 
 if __name__ == '__main__':
-    print 'flood_test()'
-    flood_test()
+    print 'flood()'
+    flood()

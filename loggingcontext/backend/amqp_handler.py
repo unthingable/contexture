@@ -11,7 +11,7 @@ import threading
 import uuid
 
 # Don't make this __name__. Used by logging config to wire amqp handler.
-LOGGER = logging.getLogger()
+LOGGER = logging.getLogger('loggingcontext.internal')
 
 
 def faux_record(obj):
