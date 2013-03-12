@@ -273,4 +273,7 @@ class AMQPHandler(logging.Handler):
 
     # Well, attempt to exit cleanly.
     def __del__(self):
+        self.close()
+
+    def close(self):
         self.stop()

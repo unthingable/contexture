@@ -156,7 +156,7 @@ class objects(messages):
                 collated['object'].update(obj)
             if self.capture_messages:
                 collated.setdefault('messages', []).append(message)
-            if mobj.get('status', None) in ('finished', 'transient'):
+            if obj_id in self.db and mobj.get('status', None) in ('finished', 'transient'):
                 collated['elapsed'] = mobj.get('elapsed', None)
                 collated['id'] = obj_id
                 collated['end'] = strtime(mobj['time_out'])
