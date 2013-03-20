@@ -247,6 +247,11 @@ class AMQPHandler(logging.Handler):
     def publish_record(self, record):
         obj = record.msg
 
+        # Sometimes regular logging messages find their way into the queue
+        # (by misconfiguration, for example). Ignore them.
+        if not isinstance(obj, dict):
+            return
+
         obj['time_out'] = time.time()
         obj['time_in'] = record.created
         # A little redundant, but, again, why not
