@@ -5,7 +5,7 @@ import logging.config
 
 logging.config.fileConfig(resource_filename(__name__, 'test.conf'))
 
-from loggingcontext import context
+from contexture import context
 from nose.tools import ok_, eq_, with_setup
 from random import random
 import json
@@ -40,7 +40,7 @@ reserved_words = 'context log update _'.split()
 log = logging.getLogger(__name__)
 
 
-class MyC(context.LoggingContext):
+class MyC(context.Context):
     foo = 1
 
 
@@ -86,7 +86,7 @@ def test_collate_2():
 
 def test_namespace():
     # We can supply our our logger
-    ctx = context.LoggingContext(logger=log)
+    ctx = context.Context(logger=log)
     for word in member_words:
         thing = random()
         setattr(ctx, word, thing)
@@ -94,7 +94,7 @@ def test_namespace():
 
 
 def test_reserved_assign():
-    ctx = context.LoggingContext()
+    ctx = context.Context()
     for word in reserved_words:
         try:
             setattr(ctx, word, 123)
@@ -105,7 +105,7 @@ def test_reserved_assign():
 
 def test_reserved_subclass():
     "Subclasses should not create class variables using reserved keywords"
-    class MyCtx(context.LoggingContext):
+    class MyCtx(context.Context):
         context = 1
 
     try:
@@ -117,7 +117,7 @@ def test_reserved_subclass():
 
 def test_name_standalone():
     # We can use context on its own
-    ctx = context.LoggingContext()
+    ctx = context.Context()
     print ctx._.name
 
 
@@ -128,13 +128,13 @@ def test_name_subclass():
 
 
 def test_name_subclass_class():
-    # Here LoggingContext cannot tell where it is,
+    # Here Context cannot tell where it is,
     # so either give it a proper name or use from __init__.
 
     # Note that it is generally not recommended to use this at
     # class level, so don't do this:
     class MyWhatever(object):
-        ctx = context.LoggingContext()
+        ctx = context.Context()
 
     mw = MyWhatever()
     print mw.ctx._.name
@@ -145,7 +145,7 @@ def test_name_subclass_init():
     # Done properly:
     class MyWhatever2(object):
         def __init__(self):
-            self.ctx = context.LoggingContext()
+            self.ctx = context.Context()
 
     mw = MyWhatever2()
     print mw.ctx._.name
@@ -153,7 +153,7 @@ def test_name_subclass_init():
 
 def test_name_set():
     # We can use our own name
-    ctx = context.LoggingContext(name='foo.bar')
+    ctx = context.Context(name='foo.bar')
     eq_(ctx._.name, 'foo.bar')
 
 
@@ -188,7 +188,7 @@ def teardown():
 
 @with_setup(setup, teardown)
 def test_logging():
-    ctx = context.LoggingContext(logger=log)
+    ctx = context.Context(logger=log)
     ctx.foo = 1
     ok_('foo' in stream.getvalue())
 
@@ -196,7 +196,7 @@ def test_logging():
 @with_setup(setup, teardown)
 def test_logging_msg():
     # We can do messages, too
-    ctx = context.LoggingContext(logger=log)
+    ctx = context.Context(logger=log)
     ctx.log.debug('ohai')
     ok_('ohai' in stream.getvalue())
 
@@ -209,7 +209,7 @@ def test_logging_msg():
 @with_setup(setup, teardown)
 def test_logging_death():
     'Our death must be documented'
-    ctx = context.LoggingContext(logger=log)
+    ctx = context.Context(logger=log)
     prev = len(stream.getvalue())
     del ctx
     # Do not got gentle into that good night
@@ -218,14 +218,14 @@ def test_logging_death():
 
 @with_setup(setup, teardown)
 def test_custom_id():
-    context.LoggingContext(guid='asdf')
+    context.Context(guid='asdf')
     ok_('asdf' in collate(emit_buffer))
 
 
 @with_setup(setup, teardown)
 def test_lifecycle_noargs():
     eq_(len(emit_buffer), 0)
-    ctx = context.LoggingContext()
+    ctx = context.Context()
     eq_(len(emit_buffer), 1)
     ctx.foo = 1
     eq_(len(emit_buffer), 2)
@@ -238,7 +238,7 @@ def test_lifecycle_noargs():
 @with_setup(setup, teardown)
 def test_context_emit():
     # We can supply initial context
-    ctx = context.LoggingContext(logger=log, context=dict(x=4))
+    ctx = context.Context(logger=log, context=dict(x=4))
     ctx.foo = 'bar'
     guid = ctx._.guid
     db = collate(emit_buffer)
@@ -274,7 +274,7 @@ def test_wrapped_properties():
 
     obj = Orig()
 
-    wrapped = context.LoggingContext(obj=obj)
+    wrapped = context.Context(obj=obj)
     ok_(wrapped.bar, 1)
     eq_(wrapped.foo, 1)
     wrapped.foo = 2
@@ -291,7 +291,7 @@ def test_wrapped_properties():
 
 @with_setup(setup, teardown)
 def test_context_emit_ignore():
-    ctx = context.LoggingContext(logger=log, ignore=('foo',))
+    ctx = context.Context(logger=log, ignore=('foo',))
     prev_log_len = len(stream.getvalue())
     prev_emit_len = len(emit_buffer)
 
@@ -302,7 +302,7 @@ def test_context_emit_ignore():
 
 @with_setup(setup, teardown)
 def test_emit_msg():
-    ctx = context.LoggingContext(logger=log)
+    ctx = context.Context(logger=log)
     ctx.log.debug('ohai')
     #db = collate(emit_buffer)
     ok_(any(x.get('message', '') == 'ohai' for x in emit_buffer))
@@ -310,7 +310,7 @@ def test_emit_msg():
 
 def real_emit():
     import time
-    with context.LoggingContext(context={"foo": 123},
+    with context.Context(context={"foo": 123},
                                 headers={"my_id": "123"}) as ctx:
         for x in range(600):
             ctx.real_deal = x
@@ -332,7 +332,7 @@ def test_wrapped_object_attribute_access():
             return 3
 
     blah = Blah()
-    ctx = context.LoggingContext(obj=blah)
+    ctx = context.Context(obj=blah)
     # Setting nonexisting attribute:
     ctx.foo = 123
     eq_(ctx.foo, 123)
@@ -358,7 +358,7 @@ def test_wrapped_object_attribute_access():
 
 @with_setup(setup, teardown)
 def test_transient_objects():
-    transient = context.LoggingContext(transient=True, context={'x': 1})
+    transient = context.Context(transient=True, context={'x': 1})
     eq_(len(emit_buffer), 1)
     del transient
     eq_(len(emit_buffer), 1)
@@ -366,8 +366,8 @@ def test_transient_objects():
 
 @with_setup(setup, teardown)
 def test_context_linking_by_id():
-    ca = context.LoggingContext(guid='a')
-    cb = context.LoggingContext(guid='b')
+    ca = context.Context(guid='a')
+    cb = context.Context(guid='b')
     ca.x = 1
     cb.linked = ca
     eq_(collate(emit_buffer)['b']['linked'], 'a')
@@ -381,7 +381,7 @@ def flood():
     from itertools import islice, cycle, ifilter
     import resource
 
-    from loggingcontext.backend import amqp_handler
+    from contexture.backend import amqp_handler
     logging.basicConfig(level=logging.DEBUG)
 
     print "SEVERELY flooding emitter with over 9000 messages"

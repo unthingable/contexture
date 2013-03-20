@@ -1,8 +1,8 @@
 > _Many machines on Ix._
 
-LoggingContext is a thin framework for sharing objects' current state across network. This is useful for distributed structured logging, monitoring, data propagation/collection, synchronization and general elevated states of awareness.
+Contexture is a thin framework for sharing objects' current state across network. This is useful for distributed structured logging, monitoring, data propagation/collection, synchronization and general elevated states of awareness.
 
-LoggingContext is built on a messaging system (powered by RabbitMQ, see the tail of this document). It solves problems associated with log parsing and directly coupled systems.
+Contexture is built on a messaging system (powered by RabbitMQ, see the tail of this document). It solves problems associated with log parsing and directly coupled systems.
 
 <!---
 ### Why message queues? I can put my object directly into Cassandra/Senty/whatever.
@@ -45,11 +45,11 @@ request = {'url': 'http://foo.com'}
 result = handle(request)
 ```
 
-Use LoggingContext to hold your objects and the above code becomes:
+Use Contexture to hold your objects and the above code becomes:
 
 ```python
 request = {'url': 'http://foo.com'}
-with LoggingContext(context=request) as ctx:
+with Context(context=request) as ctx:
     result = requests.get(request['url'])
     ctx.status_code = result.status_code
     if ctx.status_code == 200:
@@ -67,14 +67,14 @@ These messages are automatically broadcast to the message bus and, optionally, w
 
 ## Usage & integration
 
-LoggingContext is designed to be dropped in with minimal impact on the existing ecosystem.
+Contexture is designed to be dropped in with minimal impact on the existing ecosystem.
 
-LoggingContext has several personalities, one of which is `contextmanager`. In most cases it will work without the `with` — the object will properly terminate once it goes out of scope, unless you hold on to a reference. A `with` block is recommended, but you can also `del` the object manually (plus sometimes the object lives beyond the `with` block).
+Contexture has several personalities, one of which is `contextmanager`. In most cases it will work without the `with` — the object will properly terminate once it goes out of scope, unless you hold on to a reference. A `with` block is recommended, but you can also `del` the object manually (plus sometimes the object lives beyond the `with` block).
 
 > #### Names and keys
 > Once messages are published to the server, they can be selectively routed by consumers using _routing keys_ and _headers_. By default, all messages aggregate into a single stream, routing lets you pick out just your messages.
 >
-> A routing key is an arbitrary dot-separated alphanumeric string, every message sent by LoggingContext gets one. LoggingContext tries to smart about generating default keys by deriving them from current module names and stack traces. When unsure, use `name` or `routing_key` argument when constructing a LoggingContext instance.
+> A routing key is an arbitrary dot-separated alphanumeric string, every message sent by Contexture gets one. Contexture tries to smart about generating default keys by deriving them from current module names and stack traces. When unsure, use `name` or `routing_key` argument when constructing a Contexture instance.
 >
 > You can see the default name that LC picked by casting it to `str`.
 >
@@ -85,7 +85,7 @@ Create a new object whenever you need a context.
 
 ```python
 def handle(request):                    # Outgoing messages (approximately):
-    ctx = LoggingContext()              # {status: 'born', obj: {}}
+    ctx = Contexture()                  # {status: 'born', obj: {}}
     ctx.request = request               # {obj: {request: <request>}}
     ...
     result = process_request(request)
@@ -96,11 +96,11 @@ def handle(request):                    # Outgoing messages (approximately):
 You may also preload an existing context dict by passing a `context` argument to the initializer.
 
 ```python
-LoggingContext(context={'a': 1, 'foo': 'bar'})  # {status: 'born', obj: {a: 1, foo: 'bar'}}
+Contexture(context={'a': 1, 'foo': 'bar'})  # {status: 'born', obj: {a: 1, foo: 'bar'}}
 ```
 
 #### Reserved keywords and direct access
-Because LoggingContext is not a real dict but a thing of magic, some attribute names cannot be used for direct access (*_*, *context*, *log*, *update*). For example, you cannot do
+Because Contexture is not a real dict but a thing of magic, some attribute names cannot be used for direct access (*_*, *context*, *log*, *update*). For example, you cannot do
 
 ```python
 ctx.log = 'something'
@@ -114,11 +114,11 @@ ctx.update(log='something')
 print ctx.context['log']
 ```
 
-Note the use of `ctx.update()` instead of `ctx.context.update()`. Don't worry about accidentally using a reserved keyword, LoggingContext will not let you.
+Note the use of `ctx.update()` instead of `ctx.context.update()`. Don't worry about accidentally using a reserved keyword, Contexture will not let you.
 
 ### Subclass
 
-You can sublass LoggingContext. It will try to derive a name/routing_key from the name of your new class.
+You can sublass Contexture. It will try to derive a name/routing_key from the name of your new class.
 
 ### Object proxy
 
@@ -138,7 +138,7 @@ class MyObj(object):
 myobject = MyObj()
 original_object = myobject
 
-myobject = LoggingContext(obj=myobject)
+myobject = Contexture(obj=myobject)
 myobject.f() == 3                       # True
 myobject.y == 2                         # True
 myobject.x == 1                         # True
@@ -153,7 +153,7 @@ myobject.x == original_object.x == 1    # True, as expected
 
 This wrapped object behaves like the original object (function calls, @properties, etc.), but it is also a context: it will capture all attribute assignments and allow creation of new attributes (shadowing the existing read-only ones).
 
-In other words, wrap an existing object in LoggingContext and it will do its best to make sure neither the object nor the code that is using it notice a difference.
+In other words, wrap an existing object in Contexture and it will do its best to make sure neither the object nor the code that is using it notice a difference.
 
 <!--- rewrite maybe? -->
 
@@ -163,7 +163,7 @@ You have a complex dict but you only care to broadcast a part of it. Add the pri
 
 ```python
 mydict = dict(x=1, y=2, privatestuff=whatever)
-ctx = LoggingContext(context=mydict,
+ctx = Context(context=mydict,
                      ignore=['privatestuff', 'foo'])    # obj: {x: 1, y: 2}
 ctx.x = 5                                               # obj: {x: 5}
 ctx.foo = 1234                                          # nothing
@@ -180,18 +180,18 @@ ctx.log.info('OHAI')
 Use the context to format your messages
 
 ```python
-ctx = LoggingContext(context={'foo': 1})                # obj: {foo: 1}
-ctx.bar = 2                                             # obj: {bar: 2}
+ctx = Context(context={'foo': 1})                # obj: {foo: 1}
+ctx.bar = 2                                         # obj: {bar: 2}
 ...
 ctx.log.debug('my foo is {foo} and my bar is {bar}')    # obj:{}, message: 'my foo is 1 and my bar is 2'
 ```
 
 ### Logging to a logfile
 
-Provide your own logger instance and LoggingContext will log context changes to a log file for you, automatically:
+Provide your own logger instance and Contexture will log context changes to a log file for you, automatically:
 
 ```python
-ctx = LoggingContext(logger=logging.getLogger(__name__))    # <name> <id>: status = born
+ctx = Context(logger=logging.getLogger(__name__))    # <name> <id>: status = born
 ctx.update(x=1, y=2)                                        # <name> <id>: x = 1, y = 2
 ```
 
@@ -223,7 +223,7 @@ exiting your program.
 Pika does not like your unicode headers. If using `unicode_literals`, be sure to do something like:
 
 ```python
-LoggingContext(headers={b'myheader': b'something'})
+Context(headers={b'myheader': b'something'})
 ```
 
 ### Packing & sequencing
@@ -251,7 +251,7 @@ Normally the context object announces its birth and death. You can bypass that a
 ```python
 def push(obj):
     'Convenience function for publishing a short-lived object'
-    LoggingContext(name='my.routing.key', transient=True, context=obj)
+    Context(name='my.routing.key', transient=True, context=obj)
 ...
 myobject = dict(foo='whatever', ...)
 ...
@@ -263,7 +263,7 @@ push(myobject)
 The other extreme. You can think of a long lived object as a simple streaming database handle. That is, you ignore the object's own lifetime and treat it as a delta emitter, while listening for those deltas on the other end.
 
 ```python
-db = LoggingContext(name='faux_db')
+db = Context(name='faux_db')
 db.mystatus = 'now this'
 ...
 db.mystatus = 'and now that'
@@ -278,7 +278,7 @@ And on the other end you might do (see the section on _lcmon_ below).
 ### Objects with custom IDs
 
 ```python
-ctx = LoggingContext(guid='1234')
+ctx = Context(guid='1234')
 ```
 
 Context objects are assigned UUIDs automatically, but you can provide your own. This may be helpful with transient objects in particular.
@@ -288,19 +288,19 @@ Context objects are assigned UUIDs automatically, but you can provide your own. 
 Put this in your config:
 
 ```
-[logger_loggingcontext]
+[logger_contexture]
 level=DEBUG
 handlers=AMQPHandler
-qualname=loggingcontext
+qualname=contexture
 propagate=0
 
 [handler_AMQPHandler]
-class=loggingcontext.backend.amqp_handler.AMQPHandler
+class=contexture.backend.amqp_handler.AMQPHandler
 level=DEBUG
 args=("amqp://guest:guest@localhost:5672/%2F", "lc-topic", "topic")
 ```
 
-Add the logger to loggers and handler to handlers (see `loggingcontext/config.conf` for an example). The arguments to AMQP handler are:
+Add the logger to loggers and handler to handlers (see `contexture/config.conf` for an example). The arguments to AMQP handler are:
 
 1. AMQP connection string
 1. Exchange to which to publish (will be created as needed)
@@ -315,7 +315,7 @@ Inspect the messages as they fly by or grab them from the stream for your own de
 
 ## Monitoring: lcmon
 
-Included in _loggingcontext_ package is a handy monitoring utility.
+Included in _contexture_ package is a handy monitoring utility.
 
     $ lcmon -h
     usage: lcmon [-h] [-r RKEYS] [-a ARGS [ARGS ...]] [-x {all,any}] [-e EXCHANGE]
@@ -428,7 +428,7 @@ Include the headers and routing key in the final object, resulting in a slightly
 The easiest part.
 
 ```python
-from loggingcontext.monitor import messages, objects
+from contexture.monitor import messages, objects
 
 for message in monitor.messages(binding_keys=['#']):
     outer_obj = message['object']
@@ -471,7 +471,7 @@ for obj in objects:
 * Q: What if I don't consume my messages fast enough?
 * A: You laggard!
 
-But don't worry, RabbitMQ has tolerance for the likes of you. By default, LoggingContext declares all queues with a TTL (usually 60 seconds) — messages left unconsumed longer than that are automatically sent to /dev/null, providing a bound on queue growth. So even if your consumer gets terminally stuck, the world will go on.
+But don't worry, RabbitMQ has tolerance for the likes of you. By default, Contexture declares all queues with a TTL (usually 60 seconds) — messages left unconsumed longer than that are automatically sent to /dev/null, providing a bound on queue growth. So even if your consumer gets terminally stuck, the world will go on.
 
 # Storage
 
@@ -480,10 +480,10 @@ Left as an exercise.
 # Miscellanea
 
 What's in the box:
-* an ActiveRecord-style data container (`LoggingContext`), for exposing your crazy world to the backend
+* an ActiveRecord-style data container (`Context`), for exposing your crazy world to the backend
 * an AMQP backend handler, for marshalling updates to the message bus
 * utilities for monitoring the message bus (lcmon)
-LoggingContext helps you remotely monitor and analyze your code, in realtime, as it runs on one or more machines across a network. More backends can be added with relative ease.
+Contexture helps you remotely monitor and analyze your code, in realtime, as it runs on one or more machines across a network. More backends can be added with relative ease.
 
 
 Design considerations include:

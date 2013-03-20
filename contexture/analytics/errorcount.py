@@ -12,7 +12,7 @@ import threading
 import time
 from urlparse import parse_qs
 
-from loggingcontext import monitor
+from contexture import monitor
 
 running_errors = Counter()
 running_requests = Counter()

@@ -11,7 +11,7 @@ import threading
 import uuid
 
 # Don't make this __name__. Used by logging config to wire amqp handler.
-LOGGER = logging.getLogger('loggingcontext.internal')
+LOGGER = logging.getLogger('contexture.internal')
 
 
 def faux_record(obj):
@@ -265,7 +265,7 @@ class AMQPHandler(logging.Handler):
         destination = obj.pop('routing_key', 'default')
         exchange = obj.pop('exchange', self._exchange)
 
-        properties = pika.BasicProperties(app_id='loggingcontext.amqphandler',
+        properties = pika.BasicProperties(app_id='contexture.amqphandler',
                                           content_type='text/plain',
                                           headers=headers)
         try:

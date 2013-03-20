@@ -10,7 +10,7 @@ import weakref
 '''
 Use case:
 
-ctx = LoggingContext(name="mycontext")
+ctx = Context(name="mycontext")
 ctx.foo = 1
 ctx.update(msg="i has {foo} and {bar}",
            level=logging.DEBUG,
@@ -18,7 +18,7 @@ ctx.update(msg="i has {foo} and {bar}",
 x ctx.log.info("for great %s", "justice")
 ...
 
-with LoggingContext(context=dict(foo=1)) as ctx:
+with Context(context=dict(foo=1)) as ctx:
     ...
     ctx.foo = 3
 '''
@@ -27,20 +27,20 @@ with LoggingContext(context=dict(foo=1)) as ctx:
 class _dummy_obj:
     pass
 
-backend_logger = logging.getLogger("loggingcontext.backend")
+backend_logger = logging.getLogger("contexture.backend")
 
 # See if we're properly configured
 if not backend_logger.handlers:
     # Load config and rebuild
-    print 'loggingcontext logger not initialized'
+    print 'contexture logger not initialized'
     config_file = resource_filename(__name__, 'config.conf')
     config_file = os.path.normpath(config_file)
     logging.config.fileConfig(config_file)
-    backend_logger = logging.getLogger("loggingcontext")
+    backend_logger = logging.getLogger("contexture")
 
 
 # to be used by itself _and_ extended
-class LoggingContext(object):
+class Context(object):
     '''
     Reserved members:
         context
@@ -148,7 +148,7 @@ class LoggingContext(object):
         for k, v in context.iteritems():
             if k in self._.ignore:
                 continue
-            if isinstance(v, LoggingContext):
+            if isinstance(v, Context):
                 v = v._.guid
             obj[k] = v
 
@@ -189,7 +189,7 @@ class LoggingContext(object):
         return self._update(context=kw)
 
     def __setattr__(self, name, value):
-        if hasattr(LoggingContext, name):
+        if hasattr(Context, name):
             if getattr(self, name) is None:
                 object.__setattr__(self, name, value)
             else:
@@ -208,7 +208,7 @@ class LoggingContext(object):
 
     def __getattr__(self, name):
         if not hasattr(self, 'context'):
-            raise Exception("LoggingContext not initialized, call __init__()!")
+            raise Exception("Context not initialized, call __init__()!")
         if name not in self.context:
             if self._.obj and hasattr(self._.obj, name):
                 return getattr(self._.obj, name)

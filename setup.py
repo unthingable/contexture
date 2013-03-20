@@ -14,18 +14,18 @@ def find_package_data(package, files=()):
 with open('requirements.txt') as f:
     requirements = map(str.strip, f)
 
-setup(name='loggingcontext',
+setup(name='contexture',
       description='Magic Automatic Logging Context',
       version=os.environ.get('GIT_BRANCH'),
       author='Alex',
       author_email='alex@eat-up.org',
       packages=find_packages(),
       install_requires=requirements,
-      package_data=find_package_data('loggingcontext',
+      package_data=find_package_data('contexture',
                                      files=('config.conf',)),
       entry_points="""
         [console_scripts]
-        lcmon=loggingcontext.monitor:monitor_cmd
-        lcdump=loggingcontext.utils.db:main
+        lcmon=contexture.monitor:monitor_cmd
+        lcdump=contexture.utils.db:main
     """
 )
