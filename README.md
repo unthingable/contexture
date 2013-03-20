@@ -85,7 +85,7 @@ Create a new object whenever you need a context.
 
 ```python
 def handle(request):                    # Outgoing messages (approximately):
-    ctx = Contexture()                  # {status: 'born', obj: {}}
+    ctx = Context()                     # {status: 'born', obj: {}}
     ctx.request = request               # {obj: {request: <request>}}
     ...
     result = process_request(request)
@@ -96,7 +96,7 @@ def handle(request):                    # Outgoing messages (approximately):
 You may also preload an existing context dict by passing a `context` argument to the initializer.
 
 ```python
-Contexture(context={'a': 1, 'foo': 'bar'})  # {status: 'born', obj: {a: 1, foo: 'bar'}}
+Context(context={'a': 1, 'foo': 'bar'})  # {status: 'born', obj: {a: 1, foo: 'bar'}}
 ```
 
 #### Reserved keywords and direct access
@@ -118,7 +118,7 @@ Note the use of `ctx.update()` instead of `ctx.context.update()`. Don't worry ab
 
 ### Subclass
 
-You can sublass Contexture. It will try to derive a name/routing_key from the name of your new class.
+You can sublass Context. It will try to derive a name/routing_key from the name of your new class.
 
 ### Object proxy
 
@@ -138,7 +138,7 @@ class MyObj(object):
 myobject = MyObj()
 original_object = myobject
 
-myobject = Contexture(obj=myobject)
+myobject = Context(obj=myobject)
 myobject.f() == 3                       # True
 myobject.y == 2                         # True
 myobject.x == 1                         # True
@@ -164,9 +164,9 @@ You have a complex dict but you only care to broadcast a part of it. Add the pri
 ```python
 mydict = dict(x=1, y=2, privatestuff=whatever)
 ctx = Context(context=mydict,
-                     ignore=['privatestuff', 'foo'])    # obj: {x: 1, y: 2}
-ctx.x = 5                                               # obj: {x: 5}
-ctx.foo = 1234                                          # nothing
+              ignore=['privatestuff', 'foo'])   # obj: {x: 1, y: 2}
+ctx.x = 5                                       # obj: {x: 5}
+ctx.foo = 1234                                  # nothing
 ```
 
 ### Actually logging to the message bus
