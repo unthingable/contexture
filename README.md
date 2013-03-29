@@ -1,4 +1,10 @@
-> _Many machines on Ix._
+> **contexture** _|kənˈteksˌCHər|_
+>
+> noun
+> * the fact or manner of being woven or linked together to form a connected whole.
+> * a mass of things interwoven together; a fabric.
+> * the putting together of words and sentences in connected composition; the construction of a text.
+> * a connected literary structure; a continuous text.
 
 Contexture is a thin framework for sharing objects' current state across network. This is useful for distributed structured logging, monitoring, data propagation/collection, synchronization and general elevated states of awareness.
 
