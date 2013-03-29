@@ -13,12 +13,6 @@ logging.basicConfig()
 pp = pprint.PrettyPrinter(indent=1, width=80, depth=None, stream=None)
 
 
-# Place this here for now... This likely should go with other
-# AMQP stuff, like the handler, but we'll decide later.
-
-Message = namedtuple('Message', 'method properties body')
-
-
 class adict(dict):
     def __init__(self, *args, **kwargs):
         super(adict, self).__init__(*args, **kwargs)
@@ -116,7 +110,7 @@ class messages(object):
 
 
 def strtime(t):
-    return time.strftime('%F %H:%M:%S', time.localtime(int(t)))
+    return time.strftime('%FT%H:%M:%SZ', time.gmtime(int(t)))
 
 
 class objects(messages):
@@ -163,6 +157,21 @@ class objects(messages):
 
                 yield collated if self.verbose else collated['object']
                 del self.db[obj_id]
+
+
+class liveobjects(messages):
+    '''
+    prototype
+
+    Like objects(), but the objects are "live":
+    - object is returned as soon as it is "born"
+    - fields update as soon as message is received
+    - field update events are hookable
+
+    The blocking consumer is fine for "passive" objects.
+    For publishing this needs to be done asynchronously.
+    '''
+    pass
 
 
 def findkey(d, key):
