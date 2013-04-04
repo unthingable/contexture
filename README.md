@@ -21,6 +21,20 @@ You can, but it tightly couples your system to a given backend. This will make y
 1. Serialization:
 -->
 
+# Design
+
+Contexture is designed for use in high availability systems. As such, it has the following features:
+
+* low and bounded impact on the running system
+* low and bounded propagation delay (a few seconds, depending on configuration)
+* high capacity (depending on configuration, as memory allows)
+* resistance to problems upstream, such as broker outages
+
+In other words, your change may not propagate instantly but always within a few seconds, and the channel is wide.
+
+The default behavior is to prefer losing messages over blocking or running out of memory 
+(possible depending on messaging rates and queue size limits), this is configurable.
+
 # Input
 
 Objects go in, objects go out. We can explain that.
