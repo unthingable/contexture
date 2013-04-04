@@ -183,12 +183,12 @@ class AMQPHandler(logging.Handler):
                 self._running = True
                 self._connection = self.connect()
                 self._connection.ioloop.start()
-            except pika.exceptions.AMQPConnectionError:
+            except Exception:
                 self._running = False
                 # Free up queued objects
                 # with self._queue.mutex:
                 #     self._queue.queue.clear()
-                LOGGER.info('Sleeping for 10 and retrying')
+                LOGGER.info('Sleeping for 10 seconds and retrying')
                 time.sleep(10)
 
     def close_channel(self):
