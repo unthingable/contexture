@@ -1,4 +1,3 @@
-from collections import namedtuple
 from itertools import chain, islice
 import logging
 # Simplejson prefers str over unicode, looks nicer when printed
@@ -7,6 +6,7 @@ import pika
 import pprint
 import sys
 import time
+import datetime
 
 
 logging.basicConfig()
@@ -71,7 +71,7 @@ class messages(object):
                     arguments={'x-message-ttl': 10 * 60 * 1000},
                     exclusive=True,
                     auto_delete=True
-                    )
+                )
                 self.queue = result.method.queue
                 for key in binding_keys:
                     self.channel.queue_bind(self.queue,
@@ -110,7 +110,7 @@ class messages(object):
 
 
 def strtime(t):
-    return time.strftime('%FT%H:%M:%SZ', time.gmtime(int(t)))
+    return datetime.datetime.utcfromtimestamp(t).isoformat() + 'Z'
 
 
 class objects(messages):

@@ -23,7 +23,7 @@ with local_file('requirements.txt') as f:
 setup(name='contexture',
       description='Magic Automatic Logging Context',
       # version=os.environ.get('GIT_BRANCH'),
-      version='0.9.1',
+      version='0.9.3',
       author='Alex Kouznetsov',
       author_email='alex@eat-up.org',
       packages=find_packages(exclude=['test']),

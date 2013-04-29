@@ -76,15 +76,18 @@ class Context(object):
         setattr(LogProxy, level_name, closure(level, level_name))
 
     def __init__(self,
+                 # Common configuration
                  name=None,         # amqp routing key
                  routing_key=None,  # leave empty to use name
                  headers={},        # amqp headers
                  context={},        # initial context
-                 obj=None,          # native object to wrap
-                 guid=None,         # provide your own ID
                  ignore=[],         # exclude from handling
-                 silent=False,      # for using LC from SH
                  logger=None,       # custom logger
+                 guid=None,         # provide your own ID
+
+                 # Behavior
+                 obj=None,          # native object to wrap
+                 silent=False,      # for using LC from SH
                  transient=False,   # transient object
                  ):
         self.context = {}
