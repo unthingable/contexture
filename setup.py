@@ -1,6 +1,6 @@
 import os
 from setuptools import setup, find_packages
-
+from contexture import __version__
 
 # def find_package_data(package, files=()):
 #     package_data = {}
@@ -23,7 +23,7 @@ with local_file('requirements.txt') as f:
 setup(name='contexture',
       description='Magic Automatic Logging Context',
       # version=os.environ.get('GIT_BRANCH'),
-      version='0.9.3',
+      version=__version__,
       author='Alex Kouznetsov',
       author_email='alex@eat-up.org',
       packages=find_packages(exclude=['test']),

@@ -58,7 +58,7 @@ class AMQPHandler(logging.Handler):
         return pika.SelectConnection(pika.URLParameters(self._url),
                                      self.on_connection_open)
 
-    def on_connection_closed(self, method_frame):
+    def on_connection_closed(self, method_frame, *args):
         """This method is invoked by pika when the connection to RabbitMQ is
         closed unexpectedly. Since it is unexpected, we will reconnect to
         RabbitMQ if it disconnects.
