@@ -32,7 +32,7 @@ Contexture is designed for use in high availability systems. As such, it has the
 
 In other words, your change may not propagate instantly but always within a few seconds, and the channel is wide.
 
-The default behavior is to prefer losing messages over blocking or running out of memory 
+The default behavior is to prefer losing messages over blocking or running out of memory
 (possible depending on messaging rates and queue size limits), this is configurable.
 
 # Input

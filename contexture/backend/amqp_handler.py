@@ -30,14 +30,21 @@ def faux_record(obj):
 class AMQPHandler(logging.Handler):
 
     INTERVAL = 1
-    MAXQUEUE = 300
 
-    def __init__(self, url, exchange='lc-topic', exchange_type='topic', headers={}):
+    # singleton stuff
+    _thread = None
+    _queue = None
+
+    def __init__(self, url,
+                 exchange='lc-topic',
+                 exchange_type='topic',
+                 headers={},
+                 singleton=True,
+                 maxqueue=300):
         self._url = url
         self._exchange = exchange
         self._headers = headers
         self._type = exchange_type
-        self._queue = Queue(self.MAXQUEUE)
         self._running = True
         self._guid = str(uuid.uuid4())
         env = dict(host=socket.gethostname(),
@@ -45,10 +52,20 @@ class AMQPHandler(logging.Handler):
                    argv=sys.argv,
                    )
         self._headers['hostname'] = env['host']
+        self._throttled = 0
 
-        self.thread = threading.Thread(target=self.run)
-        self.thread.daemon = True
-        self.thread.start()
+        # Rely on attributes resolving up to the class level
+        # for singleton behavior.
+        if not self._queue:
+            if singleton:
+                target = self.__class__
+            else:
+                target = self
+            target._queue = Queue(maxqueue)
+            target._thread = threading.Thread(target=self.run)
+        if not target._thread.is_alive():
+            target._thread.daemon = True
+            target._thread.start()
 
         self.emit(faux_record(env))
 
@@ -58,7 +75,7 @@ class AMQPHandler(logging.Handler):
         return pika.SelectConnection(pika.URLParameters(self._url),
                                      self.on_connection_open)
 
-    def on_connection_closed(self, method_frame, *args):
+    def on_connection_closed(self, method_frame):
         """This method is invoked by pika when the connection to RabbitMQ is
         closed unexpectedly. Since it is unexpected, we will reconnect to
         RabbitMQ if it disconnects.
@@ -226,10 +243,17 @@ class AMQPHandler(logging.Handler):
 
     def emit(self, record):
         try:
+            if self._throttled > 0:
+                LOGGER.warning('Queue overflow recovered, %s messages lost'
+                               % self._throttled)
+                self.emit(faux_record({'recovered': self._throttled}))
+                self._throttled = 0
             self._queue.put_nowait(record)
         except Full:
-            LOGGER.warning('Queue full, discarding. Used %sK',
-                           resource.getrusage(resource.RUSAGE_SELF).ru_maxrss)
+            if self._throttled == 0:
+                LOGGER.warning('Queue full, discarding. Used %sK',
+                               resource.getrusage(resource.RUSAGE_SELF).ru_maxrss)
+            self._throttled += 1
 
     # def filter(self, record):
     #     return int(self._running)
