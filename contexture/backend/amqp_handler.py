@@ -202,9 +202,6 @@ class AMQPHandler(logging.Handler):
                 self._connection.ioloop.start()
             except Exception:
                 self._running = False
-                # Free up queued objects
-                # with self._queue.mutex:
-                #     self._queue.queue.clear()
                 LOGGER.info('Sleeping for 10 seconds and retrying')
                 time.sleep(10)
 
@@ -213,13 +210,19 @@ class AMQPHandler(logging.Handler):
         the Channel.Close RPC command.
 
         """
-        LOGGER.info('Closing the channel')
-        self._channel.close()
+        if self._channel:
+            LOGGER.info('Closing the channel')
+            self._channel.close()
+        else:
+            LOGGER.debug('Channel has not been open')
 
     def close_connection(self):
         """This method closes the connection to RabbitMQ."""
-        LOGGER.info('Closing connection')
-        self._connection.close()
+        if self._connection:
+            LOGGER.info('Closing connection')
+            self._connection.close()
+        else:
+            LOGGER.debug('Connection has not been open')
 
     def stop(self):
         """
