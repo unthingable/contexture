@@ -1,9 +1,6 @@
 from cStringIO import StringIO
-from pkg_resources import resource_filename
 import logging
 import logging.config
-
-logging.config.fileConfig(resource_filename(__name__, 'test.conf'))
 
 from contexture import context
 from nose.tools import ok_, eq_, with_setup
