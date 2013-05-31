@@ -34,6 +34,8 @@ class AMQPHandler(logging.Handler):
     # singleton stuff
     _thread = None
     _queue = None
+    _channel = None
+    _connection = None
 
     def __init__(self, url,
                  exchange='lc-topic',
@@ -56,18 +58,18 @@ class AMQPHandler(logging.Handler):
 
         # Rely on attributes resolving up to the class level
         # for singleton behavior.
-        if not self._queue:
-            if singleton:
-                target = self.__class__
-            else:
-                target = self
+        if singleton:
+            target = self.__class__
+        else:
+            target = self
+        if not target._queue:
             target._queue = Queue(maxqueue)
             target._thread = threading.Thread(target=self.run)
         if not target._thread.is_alive():
             target._thread.daemon = True
             target._thread.start()
 
-        self.emit(faux_record(env))
+        self.emit_obj(env)
 
         logging.Handler.__init__(self)
 
@@ -200,9 +202,10 @@ class AMQPHandler(logging.Handler):
                 self._running = True
                 self._connection = self.connect()
                 self._connection.ioloop.start()
-            except Exception:
-                self._running = False
+            except Exception, e:
                 LOGGER.info('Sleeping for 10 seconds and retrying')
+                LOGGER.exception(e)
+                self._running = False
                 time.sleep(10)
 
     def close_channel(self):
@@ -238,25 +241,31 @@ class AMQPHandler(logging.Handler):
 
         """
         # Stopping from __del__ quite work, but we don't care so much.
-        self.emit(faux_record({"stopping": True}))
+        self.emit_obj({"stopping": True})
         self._running = False
-        self.close_channel()
-        self.close_connection()
-        self._connection.ioloop.start()
+        if self._channel:
+            self.close_channel()
+        if self._connection:
+            self.close_connection()
+            self._connection.ioloop.start()
 
     def emit(self, record):
         try:
+            self._queue.put_nowait(record)
             if self._throttled > 0:
                 LOGGER.warning('Queue overflow recovered, %s messages lost'
                                % self._throttled)
-                self.emit(faux_record({'recovered': self._throttled}))
+                # infinite loop much?
+                self.emit_obj({'recovered': self._throttled})
                 self._throttled = 0
-            self._queue.put_nowait(record)
         except Full:
             if self._throttled == 0:
                 LOGGER.warning('Queue full, discarding. Used %sK',
                                resource.getrusage(resource.RUSAGE_SELF).ru_maxrss)
             self._throttled += 1
+
+    def emit_obj(self, obj):
+        self.emit(faux_record(obj))
 
     # def filter(self, record):
     #     return int(self._running)
