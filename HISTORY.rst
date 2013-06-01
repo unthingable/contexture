@@ -3,10 +3,13 @@
 History
 -------
 
-0.9.5.1 (pending)
+0.9.6 (pending)
 +++++++++++++++++
 
-- Add massive tests
+- Add thread id to handler announcement
+- Add reconnection timeout argument to amqp_handler
+- Add amqp_handler tests
+- Bump pika version to 0.9.13
 
 0.9.5 (2013-05-23)
 ++++++++++++++++++

@@ -22,8 +22,12 @@ def faux_record(obj):
     return faux
 
 
-# def publish(obj, headers=None, exchange='default', routing_key='lc-handler'):
-#     'Shorthand to publish anything anywhere'
+def qitems(queue):
+    while True:
+        try:
+            yield queue.get_nowait()
+        except Empty:
+            raise StopIteration
 
 
 # TODO: add heartbeat?
@@ -42,7 +46,8 @@ class AMQPHandler(logging.Handler):
                  exchange_type='topic',
                  headers={},
                  singleton=True,
-                 maxqueue=300):
+                 maxqueue=300,
+                 reconnect_wait=10):
         self._url = url
         self._exchange = exchange
         self._headers = headers
@@ -52,9 +57,11 @@ class AMQPHandler(logging.Handler):
         env = dict(host=socket.gethostname(),
                    pid=os.getpid(),
                    argv=sys.argv,
+                   tid=threading.current_thread().ident,
                    )
         self._headers['hostname'] = env['host']
         self._throttled = 0
+        self._reconnect_wait = reconnect_wait
 
         # Rely on attributes resolving up to the class level
         # for singleton behavior.
@@ -62,10 +69,10 @@ class AMQPHandler(logging.Handler):
             target = self.__class__
         else:
             target = self
-        if not target._queue:
+        if not target._queue or not singleton:
             target._queue = Queue(maxqueue)
             target._thread = threading.Thread(target=self.run)
-        if not target._thread.is_alive():
+        # if not target._thread.is_active():
             target._thread.daemon = True
             target._thread.start()
 
@@ -203,10 +210,11 @@ class AMQPHandler(logging.Handler):
                 self._connection = self.connect()
                 self._connection.ioloop.start()
             except Exception, e:
-                LOGGER.info('Sleeping for 10 seconds and retrying')
+                LOGGER.info('Sleeping for %s seconds and retrying'
+                            % self._reconnect_wait)
                 LOGGER.exception(e)
                 self._running = False
-                time.sleep(10)
+                time.sleep(self._reconnect_wait)
 
     def close_channel(self):
         """Invoke this command to close the channel with RabbitMQ by sending
@@ -229,7 +237,8 @@ class AMQPHandler(logging.Handler):
 
     def stop(self):
         """
-        stop() from example. We'll be exiting uncleanly, so messages might be lost.
+        stop() from example. We'll be exiting uncleanly, so messages might be
+        lost.
 
         Original docstring:
         Stop the example by closing the channel and connection. We
@@ -252,31 +261,26 @@ class AMQPHandler(logging.Handler):
     def emit(self, record):
         try:
             self._queue.put_nowait(record)
-            if self._throttled > 0:
-                LOGGER.warning('Queue overflow recovered, %s messages lost'
-                               % self._throttled)
-                # infinite loop much?
-                self.emit_obj({'recovered': self._throttled})
-                self._throttled = 0
         except Full:
             if self._throttled == 0:
-                LOGGER.warning('Queue full, discarding. Used %sK',
-                               resource.getrusage(resource.RUSAGE_SELF).ru_maxrss)
+                size = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
+                LOGGER.warning('Queue full, discarding. Used %sK', size)
             self._throttled += 1
 
     def emit_obj(self, obj):
         self.emit(faux_record(obj))
 
-    # def filter(self, record):
-    #     return int(self._running)
+    def publish_items(self):
+        for item in qitems(self._queue):
+            self.publish_record(item)
+        if self._throttled > 0:
+            LOGGER.warning('Queue overflow recovered, %s messages lost'
+                           % self._throttled)
+            self._throttled = 0
+            self.publish_record(faux_record({'recovered': self._throttled}))
 
     def schedule_next_message(self):
-        while True:
-            try:
-                item = self._queue.get_nowait()
-            except Empty:
-                break
-            self.publish_record(item)
+        self.publish_items()
         # if self._running:
         self._connection.add_timeout(self.INTERVAL, self.schedule_next_message)
 
@@ -309,8 +313,11 @@ class AMQPHandler(logging.Handler):
         except Exception, e:
             message = json.dumps(dict(error=repr(e)))
 
-        self._channel.basic_publish(exchange, destination,
-                                    message, properties)
+        if self._channel.is_open:
+            self._channel.basic_publish(exchange, destination,
+                                        message, properties)
+        else:
+            LOGGER.debug('Discarding %s', message)
 
     # Well, attempt to exit cleanly.
     def __del__(self):

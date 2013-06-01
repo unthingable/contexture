@@ -1,25 +1,91 @@
 from contexture.backend import amqp_handler
-from mock import Mock, MagicMock, patch
-from nose.tools import eq_
-import pika
+
+import logging
+from mock import Mock, patch
+from nose.tools import eq_, ok_, with_setup
+from pika import channel
+from cStringIO import StringIO
 import time
+import threading
 
-#config = {'contexture.backend.amqp_handler.AMQPHandler._channel'}
+# log = logging.getLogger(__name__)
+stream = StringIO()  # log output
+out_handler = logging.StreamHandler(stream)
+amqp_handler.LOGGER.addHandler(out_handler)
+# amqp_handler.LOGGER.setLevel(logging.DEBUG)
 
-def fake_ioloop(*args):
-    time.sleep(2)
+def setup():
+    stream.reset()
+    stream.truncate()
 
-@patch.object(amqp_handler.AMQPHandler, '_channel', autospec=True)
-#@patch.object(amqp_handler.AMQPHandler, )
-@patch('pika.connection.Connection.connect', autospec=True)
-#@patch.object(amqp_handler, 'pika', autospec=True)
-def test_amqp_singleton(conn, channel):
-    handler1 = amqp_handler.AMQPHandler("amqp://guest:guest@localhost:5672/%2F")
-    # handler2 = amqp_handler.AMQPHandler('')
 
-    # handler1.emit_obj({'foo': 'bar'})
+def patched_handler(*args, **kw):
+    "Return a handler that thinks it's connected"
 
-    # eq_(handler1._queue, handler2._queue)
-    # eq_(handler1._thread, handler2._thread)
-    time.sleep(2)
-    print len(channel.mock_calls)
+    def fake_ioloop():
+        '''
+        We have to replace the native ioloop, so the callback chains
+        won't fire any more. Have to do the publishing work ourselves.
+        '''
+        while True:
+            handler.publish_items()
+            time.sleep(0.1)
+
+    def fake_run(arg):
+        '''
+        Skip the connection and start the loop.
+        '''
+        run_thread = threading.Thread(target=fake_ioloop)
+        run_thread.daemon = True
+        run_thread.start()
+
+    with patch.multiple(amqp_handler.AMQPHandler, run=fake_run):
+        handler = amqp_handler.AMQPHandler(*args, **kw)
+        handler._channel = Mock(spec=channel.Channel)
+        handler._channel.is_open = True
+        return handler
+
+
+def test_amqp_singleton(*args):
+    handler1 = patched_handler('')
+    handler2 = patched_handler('')
+    handler3 = patched_handler('', singleton=False)
+
+    handler1.emit_obj({'foo': 'bar'})
+    time.sleep(0.2)
+
+    # handler1 and 2 should have singleton queues and threads
+    eq_(handler1._queue, handler2._queue)
+    eq_(handler1._thread, handler2._thread)
+
+    # handler3 should have his own
+    ok_(handler1._queue != handler3._queue)
+    ok_(handler1._thread != handler3._thread)
+
+    # Visual check, expect to see two greetings and one emit
+    print handler1._channel.basic_publish.call_args_list
+
+
+@with_setup(setup)
+def test_overflow():
+    maxqueue = 3
+    volley_size = 50
+    handler = patched_handler('', maxqueue=maxqueue, singleton=False)
+    # Allow handler announcement to propagate
+    time.sleep(0.2)
+    # Cause an overflow
+    for ii in range(volley_size):
+        handler.emit_obj({'x': 'y'})
+    # Let it recover
+    time.sleep(0.2)
+
+    handler.emit_obj({1: 2})
+    time.sleep(0.2)
+    out = stream.getvalue()
+    print out
+    print handler._channel.basic_publish.call_args_list
+
+    expect_lost = volley_size - maxqueue
+    eq_(out.count('%s messages lost' % expect_lost), 1)
+    eq_(out.count('recovered'), 1)
+    eq_(out.count('full'), 1)
