@@ -3,10 +3,11 @@
 History
 -------
 
-0.9.6 (2013-06-05)
+0.9.8 (2013-06-05)
 +++++++++++++++++
 
 - Add missing config.conf to MANIFEST.in
+- Deal with variable args in AMQP callbacks
 
 0.9.6 (2013-06-03)
 +++++++++++++++++

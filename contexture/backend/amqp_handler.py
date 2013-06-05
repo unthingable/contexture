@@ -87,7 +87,7 @@ class AMQPHandler(logging.Handler):
         return pika.SelectConnection(pika.URLParameters(self._url),
                                      self.on_connection_open)
 
-    def on_connection_closed(self, method_frame):
+    def on_connection_closed(self, method_frame, *args):
         """This method is invoked by pika when the connection to RabbitMQ is
         closed unexpectedly. Since it is unexpected, we will reconnect to
         RabbitMQ if it disconnects.
@@ -102,7 +102,7 @@ class AMQPHandler(logging.Handler):
         self._channel = None
         self._connection = self.connect()
 
-    def on_connection_open(self, unused_connection):
+    def on_connection_open(self, unused_connection, *args):
         """This method is called by pika once the connection to RabbitMQ has
         been established. It passes the handle to the connection object in
         case we need it, but in this case, we'll just mark it unused.
@@ -114,7 +114,7 @@ class AMQPHandler(logging.Handler):
         self._connection.add_on_close_callback(self.on_connection_closed)
         self.open_channel()
 
-    def on_channel_closed(self, method_frame):
+    def on_channel_closed(self, method_frame, *args):
         """Invoked by pika when RabbitMQ unexpectedly closes the channel.
         Channels are usually closed if you attempt to do something that
         violates the protocol, such as redeclare an exchange or queue with
@@ -129,7 +129,7 @@ class AMQPHandler(logging.Handler):
                        method_frame.method.reply_text)
         self._connection.close()
 
-    def on_channel_open(self, channel):
+    def on_channel_open(self, channel, *args):
         """This method is invoked by pika when the channel has been opened.
         The channel object is passed in so we can make use of it.
 
@@ -153,7 +153,7 @@ class AMQPHandler(logging.Handler):
         LOGGER.info('Creating a new channel')
         self._connection.channel(on_open_callback=self.on_channel_open)
 
-    def on_exchange_declareok(self, exchange_name):
+    def on_exchange_declareok(self, exchange_name, *args):
         # start publishing
         # self.enable_delivery_confirmations()
         self.schedule_next_message()
@@ -173,7 +173,7 @@ class AMQPHandler(logging.Handler):
                                        durable=True
                                        )
 
-    def on_delivery_confirmation(self, method_frame):
+    def on_delivery_confirmation(self, method_frame, *args):
         """Invoked by pika when RabbitMQ responds to a Basic.Publish RPC
         command, passing in either a Basic.Ack or Basic.Nack frame with
         the delivery tag of the message that was published. The delivery tag
