@@ -1,3 +1,4 @@
+from collections import OrderedDict
 from itertools import chain, islice
 import logging
 # Simplejson prefers str over unicode, looks nicer when printed
@@ -196,7 +197,7 @@ def extract_keys(d, keys):
     Given a list of keys, do findkey(), expand single element lists
     and return a dict.
     '''
-    result = {}
+    result = OrderedDict()
     for key in keys:
         if key.startswith('*'):
             key = key.lstrip('*')
