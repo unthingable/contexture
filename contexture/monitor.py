@@ -1,23 +1,15 @@
-from collections import OrderedDict
-from itertools import chain, islice
 import logging
 # Simplejson prefers str over unicode, looks nicer when printed
 import simplejson as json
 import pika
 import pprint
 import sys
-import time
 import datetime
 
+from contexture.utils import adict, remove_keys, extract_keys
 
 logging.basicConfig()
 pp = pprint.PrettyPrinter(indent=1, width=80, depth=None, stream=None)
-
-
-class adict(dict):
-    def __init__(self, *args, **kwargs):
-        super(adict, self).__init__(*args, **kwargs)
-        self.__dict__ = self
 
 
 class messages(object):
@@ -175,40 +167,6 @@ class liveobjects(messages):
     pass
 
 
-def findkey(d, key):
-    "Find all occurrences of <key> in dict <d> and its contents"
-    if isinstance(d, dict):
-        if key in d:
-            result = d[key]
-            if isinstance(d, (tuple, list)):
-                for item in result:
-                    yield item
-            else:
-                yield result
-        for item in findkey(d.values(), key):
-            yield item
-    elif isinstance(d, (tuple, list)):
-        for item in chain(*(findkey(x, key) for x in d)):
-            yield item
-
-
-def extract_keys(d, keys):
-    '''
-    Given a list of keys, do findkey(), expand single element lists
-    and return a dict.
-    '''
-    result = OrderedDict()
-    for key in keys:
-        if key.startswith('*'):
-            key = key.lstrip('*')
-            result[key] = tuple(findkey(d, key))
-        else:
-            result[key] = tuple(islice(findkey(d, key), 1))
-        if len(result[key]) == 1:
-            result[key] = result[key][0]
-    return result
-
-
 def monitor_cmd():
     import argparse
     parser = argparse.ArgumentParser(description='Simple AMQP monitor',
@@ -232,6 +190,8 @@ def monitor_cmd():
 
     parser.add_argument('-k', '--keys', nargs='+',
                         help='keys to extract (*key for all matches)')
+    parser.add_argument('-t', '--trim', nargs='+',
+                        help='keys to remove from output')
     parser.add_argument('-c', '--collate', action='count',
                         help='extract collated objects from message stream')
     parser.add_argument('-p', '--pretty', action='store_true', default=False,
@@ -280,6 +240,8 @@ def monitor_cmd():
                     rkey=message.rkey)
         if args.keys:
             out.object = extract_keys(out.object, args.keys)
+        if args.trim:
+            out.object = remove_keys(out.object, args.trim)
         if not args.verbose:
             out = out.object
 
@@ -289,6 +251,8 @@ def monitor_cmd():
     def on_object(obj):
         if args.keys:
             obj = extract_keys(obj, args.keys)
+        if args.trim:
+            obj = remove_keys(obj, args.trim)
         print_(obj)
         print
 

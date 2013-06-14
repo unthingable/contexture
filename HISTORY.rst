@@ -3,6 +3,15 @@
 History
 -------
 
+0.9.9 (2013-)
++++++++++++++++++
+
+``lcmon``:
+
+- ``--keys``: will now stay in order
+- Add ``--trim``
+- Add tests
+
 0.9.8 (2013-06-05)
 +++++++++++++++++
 
