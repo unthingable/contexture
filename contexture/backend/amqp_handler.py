@@ -274,13 +274,17 @@ class AMQPHandler(logging.Handler):
         self.emit(faux_record(obj))
 
     def publish_items(self):
-        for item in qitems(self._queue):
-            self.publish_record(item)
-        if self._throttled > 0:
-            LOGGER.warning('Queue overflow recovered, %s messages lost'
-                           % self._throttled)
-            self._throttled = 0
-            self.publish_record(faux_record({'recovered': self._throttled}))
+        # Check before popping
+        if self._channel:
+            for item in qitems(self._queue):
+                self.publish_record(item)
+            if self._throttled > 0:
+                LOGGER.warning('Queue overflow recovered, %s messages lost'
+                               % self._throttled)
+                self._throttled = 0
+                self.publish_record(faux_record({'recovered': self._throttled}))
+        else:
+            LOGGER.warning('No channel, keeping messages')
 
     def schedule_next_message(self):
         self.publish_items()
