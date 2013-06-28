@@ -1,7 +1,8 @@
-from nose.tools import eq_
+from nose.tools import eq_, ok_
 from contexture import utils
 
 d = dict(a=1, b=2, x=dict(a=3, c=4))
+d2 = dict(y=[])
 
 
 def test_remove_keys():
@@ -18,3 +19,8 @@ def test_extract_keys():
     eq_(utils.extract_keys(d, ['c']), {'c': 4})
     # Get all "a"s
     eq_(utils.extract_keys(d, ['*a']), {'a': (1, 3)})
+
+
+def test_filter_dict_empty():
+    filtered = utils.filter_dict_empty(d2)
+    ok_(not filtered)

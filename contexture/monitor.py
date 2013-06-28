@@ -6,7 +6,8 @@ import pprint
 import sys
 import datetime
 
-from contexture.utils import adict, remove_keys, extract_keys
+from contexture.utils import adict, remove_keys, extract_keys, filter_dict_empty
+from contexture import __version__
 
 logging.basicConfig()
 pp = pprint.PrettyPrinter(indent=1, width=80, depth=None, stream=None)
@@ -45,6 +46,7 @@ class messages(object):
                  binding_args=None,
                  exchange='lc-topic',
                  queue=None,
+                 queue_args=None,       # used to declare a queue
                  stdin=None,            # read from a stream instead of a queue
                  raw=False              # skip json.loads()
                  ):
@@ -57,7 +59,8 @@ class messages(object):
             self.channel = self.connection.channel()
 
             if queue:
-                self.channel.queue_declare(queue=queue, passive=True)
+                args = queue_args or dict(passive=True)
+                self.channel.queue_declare(queue=queue, **args)
                 self.queue = queue
             else:
                 result = self.channel.queue_declare(
@@ -169,7 +172,7 @@ class liveobjects(messages):
 
 def monitor_cmd():
     import argparse
-    parser = argparse.ArgumentParser(description='Simple AMQP monitor',
+    parser = argparse.ArgumentParser(description='Simple AMQP monitor, contexture %s' % __version__,
                                      formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument('-H', '--hostname', default='localhost',
                         help='AMQP server hostname')
@@ -197,6 +200,7 @@ def monitor_cmd():
     parser.add_argument('-p', '--pretty', action='store_true', default=False,
                         help='pretty print')
     parser.add_argument('-v', '--verbose', action='count')
+    parser.add_argument('-z', action='count', help='trim empty keys/objects')
 
     args = parser.parse_args()
 
@@ -233,6 +237,13 @@ def monitor_cmd():
         else:
             print json.dumps(s)
 
+    def post_process(obj):
+        if args.trim:
+            obj = remove_keys(obj, args.trim)
+        if args.z:
+            obj = filter_dict_empty(obj)
+        return obj
+
     def on_message(message):
         # (method, properties, body) = message
         out = adict(object=message.object,
@@ -240,21 +251,25 @@ def monitor_cmd():
                     rkey=message.rkey)
         if args.keys:
             out.object = extract_keys(out.object, args.keys)
-        if args.trim:
-            out.object = remove_keys(out.object, args.trim)
+
+        out.object = post_process(out.object)
+
         if not args.verbose:
             out = out.object
 
-        print_(out)
-        print
+        if args.z is None or out:
+            print_(out)
+            print
 
     def on_object(obj):
         if args.keys:
             obj = extract_keys(obj, args.keys)
-        if args.trim:
-            obj = remove_keys(obj, args.trim)
-        print_(obj)
-        print
+
+        obj = post_process(obj)
+
+        if args.z is None or obj:
+            print_(obj)
+            print
 
     try:
         if args.collate:

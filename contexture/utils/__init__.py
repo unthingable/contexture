@@ -48,3 +48,13 @@ def remove_keys(d, keys):
     if isinstance(d, dict):
         d = {k: remove_keys(v, keys) for k, v in d.iteritems() if k not in keys}
     return d
+
+
+def filter_dict(d, filter_func):
+    if isinstance(d, dict):
+        d = {k: filter_dict(v, filter_func) for k, v in d.iteritems() if filter_func(k, v)}
+    return d
+
+
+def filter_dict_empty(d):
+    return filter_dict(d, lambda k, v: bool(v))
