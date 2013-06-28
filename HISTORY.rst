@@ -3,13 +3,18 @@
 History
 -------
 
-0.9.9 (2013-)
+0.9.9 (2013-06-27)
 +++++++++++++++++
+
+- Keep messages until channel is open
+- monitor: add queue declare args
 
 ``lcmon``:
 
 - ``--keys``: will now stay in order
 - Add ``--trim``
+- Add ``-z``
+- Add version to help
 - Add tests
 
 0.9.8 (2013-06-05)
