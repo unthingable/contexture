@@ -2,7 +2,6 @@ from nose.tools import eq_, ok_
 from contexture import utils
 
 d = dict(a=1, b=2, x=dict(a=3, c=4))
-d2 = dict(y=[])
 
 
 def test_remove_keys():
@@ -22,5 +21,5 @@ def test_extract_keys():
 
 
 def test_filter_dict_empty():
-    filtered = utils.filter_dict_empty(d2)
-    ok_(not filtered)
+    filtered = utils.filter_dict_empty(dict(x=[]))
+    eq_(filtered, {})
