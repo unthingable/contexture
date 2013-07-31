@@ -44,16 +44,11 @@ def configure(backend=backend.amqp.AMQPHandler,
 
 def _safe_logger():
     l1 = logging.getLogger('asdfoiuqwerzxcv')
-    l2 = logging.getLogger("contexture.backend")
+    l2 = logging.getLogger("contexture")
     if l1.__class__ == logging.Logger and l2.__class__ != logging.Logger:
         return l2
 
 backend_logger = _safe_logger()
-# if logger_hijacked():
-#     print 'Logger hijack detected, calling default configure()'
-#     configure()
-# else:
-#     backend_logger = logging.getLogger("contexture.backend")
 
 
 class _dummy_obj:
