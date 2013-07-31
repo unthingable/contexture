@@ -7,6 +7,8 @@ from time import time
 import uuid
 import weakref
 
+from . import backend
+
 '''
 Use case:
 
@@ -23,20 +25,58 @@ with Context(context=dict(foo=1)) as ctx:
     ctx.foo = 3
 '''
 
+backend_logger = None
+backend_handler = None
+
+
+# primitive config prototype
+def configure(backend=backend.amqp.AMQPHandler,
+              args=("amqp://guest:guest@localhost:5672/%2F", "lc-topic", "topic"),
+              kwargs={}):
+    '''
+    Explicitly configure contexture with a handler.
+
+    This will skip the logging-based configuration.
+    '''
+    global backend_handler
+    backend_handler = backend(*args, **kwargs)
+
+
+def _safe_logger():
+    l1 = logging.getLogger('asdfoiuqwerzxcv')
+    l2 = logging.getLogger("contexture.backend")
+    if l1.__class__ == logging.Logger and l2.__class__ != logging.Logger:
+        return l2
+
+backend_logger = _safe_logger()
+# if logger_hijacked():
+#     print 'Logger hijack detected, calling default configure()'
+#     configure()
+# else:
+#     backend_logger = logging.getLogger("contexture.backend")
+
 
 class _dummy_obj:
     pass
 
-backend_logger = logging.getLogger("contexture.backend")
 
-# See if we're properly configured
-if not backend_logger.handlers:
-    # Load config and rebuild
-    print 'contexture logger not initialized'
-    config_file = resource_filename(__name__, 'config.conf')
-    config_file = os.path.normpath(config_file)
-    logging.config.fileConfig(config_file)
-    backend_logger = logging.getLogger("contexture")
+def push_to_backend(obj, level=None):
+    if not backend_logger:
+        if not backend_handler:
+            print 'Logging not configured (or hijacked), calling default configure()'
+            configure()
+        backend_handler.emit_obj(obj)
+    else:
+        # global backend_logger
+        # if not backend_logger.handlers:
+        #         # Load config and rebuild
+        #         # Because this is deferred, this will undo any logger hijacking (HI, CELERY!).
+        #         print 'Initializing default contexture logger'
+        #         config_file = resource_filename(__name__, 'config.conf')
+        #         config_file = os.path.normpath(config_file)
+        #         logging.config.fileConfig(config_file)
+        #         backend_logger = logging.getLogger("contexture")
+        backend_logger.log(level, obj)
 
 
 # to be used by itself _and_ extended
@@ -177,7 +217,7 @@ class Context(object):
                 out_obj['message'] = msg
             # Careful, don't clobber
             out_obj.update(meta)
-            backend_logger.log(level, out_obj)
+            push_to_backend(out_obj, level=level)
 
         # Log log
         if self._.log and self._.log.isEnabledFor(level):

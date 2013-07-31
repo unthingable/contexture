@@ -155,6 +155,10 @@ class objects(messages):
                 del self.db[obj_id]
 
 
+class LiveObject(object):
+    pass
+
+
 class liveobjects(messages):
     '''
     prototype
@@ -167,7 +171,8 @@ class liveobjects(messages):
     The blocking consumer is fine for "passive" objects.
     For publishing this needs to be done asynchronously.
     '''
-    pass
+
+    # def __init__(self, ttl)
 
 
 def monitor_cmd():
