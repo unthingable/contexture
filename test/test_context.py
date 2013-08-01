@@ -168,9 +168,12 @@ class BHandler(logging.Handler):
 
 backend_handler = BHandler()
 backend_handler.setLevel(logging.DEBUG)
-
+backend_logger = None
 
 def setup():
+    global backend_logger
+    backend_logger = context.backend_logger
+    context.backend_logger = logging.getLogger('contexture.test')
     context.backend_logger.addHandler(backend_handler)
     log.addHandler(out_handler)
     stream.reset()
@@ -179,7 +182,8 @@ def setup():
 
 
 def teardown():
-    context.backend_logger.removeHandler(backend_handler)
+    # context.backend_logger.removeHandler(backend_handler)
+    context.backend_logger = backend_logger
     log.removeHandler(out_handler)
 
 
