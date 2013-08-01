@@ -278,6 +278,7 @@ class AMQPHandler(logging.Handler):
         if self._channel:
             for item in qitems(self._queue):
                 self.publish_record(item)
+                self._queue.task_done()
             if self._throttled > 0:
                 LOGGER.warning('Queue overflow recovered, %s messages lost'
                                % self._throttled)

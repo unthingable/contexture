@@ -25,6 +25,8 @@ with Context(context=dict(foo=1)) as ctx:
     ctx.foo = 3
 '''
 
+# TODO: add termination protection, add test for handler queue join
+
 backend_logger = None
 backend_handler = None
 
@@ -49,6 +51,9 @@ def _safe_logger():
         return l2
 
 backend_logger = _safe_logger()
+if backend_logger:
+    # test this!
+    backend_handler = backend_logger.handlers[0]
 
 
 class _dummy_obj:
@@ -124,6 +129,7 @@ class Context(object):
                  obj=None,          # native object to wrap
                  silent=False,      # for using LC from SH
                  transient=False,   # transient object
+                 wait=False,        # for handler queue to empty
                  ):
         self.context = {}
         self._ = _dummy_obj()
@@ -133,6 +139,7 @@ class Context(object):
         self._.ignore = tuple(ignore)
         self._.deleted = False
         self._.transient = transient
+        self._.wait = wait
 
         # An object reference for extended accessors
         if obj:
@@ -269,3 +276,5 @@ class Context(object):
             self._.deleted = True
             self._update(meta=dict(status="finished",
                                    elapsed=(time() - self._.created_at)))
+            if self._.wait:
+                backend_handler._queue.join()
