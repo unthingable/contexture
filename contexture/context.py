@@ -31,6 +31,11 @@ backend_logger = None
 backend_handler = None
 
 
+config = {
+    'wait': False
+}
+
+
 # primitive config prototype
 def configure(backend=backend.amqp.AMQPHandler,
               args=("amqp://guest:guest@localhost:5672/%2F", "lc-topic", "topic"),
@@ -42,6 +47,7 @@ def configure(backend=backend.amqp.AMQPHandler,
     '''
     global backend_handler
     backend_handler = backend(*args, **kwargs)
+    config.update({k: v for k, v in kwargs.iteritems() if k in config})
 
 
 def _safe_logger():
@@ -129,7 +135,7 @@ class Context(object):
                  obj=None,          # native object to wrap
                  silent=False,      # for using LC from SH
                  transient=False,   # transient object
-                 wait=False,        # for handler queue to empty
+                 wait=None,         # for handler queue to empty (t/f/none)
                  ):
         self.context = {}
         self._ = _dummy_obj()
@@ -139,7 +145,7 @@ class Context(object):
         self._.ignore = tuple(ignore)
         self._.deleted = False
         self._.transient = transient
-        self._.wait = wait
+        self._.wait = wait if wait is not None else config['wait']
 
         # An object reference for extended accessors
         if obj:

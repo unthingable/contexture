@@ -1,6 +1,6 @@
 from cStringIO import StringIO
 import logging
-import logging.config
+
 
 from contexture import context
 from nose.tools import ok_, eq_, with_setup
@@ -169,6 +169,7 @@ class BHandler(logging.Handler):
 backend_handler = BHandler()
 backend_handler.setLevel(logging.DEBUG)
 backend_logger = None
+
 
 def setup():
     global backend_logger
