@@ -3,6 +3,11 @@
 History
 -------
 
+0.10.0 (2013-08-01)
++++++++++++++++++++
+- Add non-logging based configuration (context.configure()), to get around logger hijacking (I'm looking at you, celery)
+- Context processor can now wait for the handler queue to empty, automatically. This simplifies things for short-running process and guarantees EOL message delivery.
+
 0.9.9 (2013-06-27)
 +++++++++++++++++
 

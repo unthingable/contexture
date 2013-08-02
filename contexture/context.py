@@ -51,6 +51,10 @@ def configure(backend=backend.amqp.AMQPHandler,
 
 
 def _safe_logger():
+    '''
+    Return a logger if logging has been genuinely configured for Contexture
+    (via an educated guess).
+    '''
     l1 = logging.getLogger('asdfoiuqwerzxcv')
     l2 = logging.getLogger("contexture")
     if l1.__class__ == logging.Logger and l2.__class__ != logging.Logger:
