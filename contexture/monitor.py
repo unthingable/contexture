@@ -13,6 +13,14 @@ logging.basicConfig()
 pp = pprint.PrettyPrinter(indent=1, width=80, depth=None, stream=None)
 
 
+class CMessage(adict):
+    pass
+
+
+class CObject(CMessage):
+    pass
+
+
 class messages(object):
     '''
     Return a contextmanager/iterator over messages in a queue. The queue is
@@ -48,13 +56,16 @@ class messages(object):
                  queue=None,
                  queue_args=None,       # used to declare a queue
                  stdin=None,            # read from a stream instead of a queue
-                 raw=False              # skip json.loads()
+                 raw=False,             # skip json.loads()
+                 socket_timeout=None,
                  ):
         if not stdin:
             # Set up us the AMQP
-            params = None
+            params = pika.ConnectionParameters()
             if url:
                 params = pika.URLParameters(url)
+            if socket_timeout:
+                params.socket_timeout = socket_timeout
             self.connection = pika.BlockingConnection(params)
             self.channel = self.connection.channel()
 
@@ -81,9 +92,9 @@ class messages(object):
         if not self.stdin:
             for (method, properties, body) in self.channel.consume(self.queue):
                 self.channel.basic_ack(0, multiple=True)
-                yield adict(headers=properties.headers,
-                            rkey=method.routing_key,
-                            object=body if self.raw else json.loads(body))
+                yield CMessage(headers=properties.headers,
+                               rkey=method.routing_key,
+                               object=body if self.raw else json.loads(body))
         else:
             for line in self.stdin:
                 if not line.strip():
@@ -113,10 +124,17 @@ class objects(messages):
     '''
     Like messages(), but extract collated objects from message stream.
     '''
-    def __init__(self, verbose=False, capture_messages=False, **kw):
+    def __init__(self,
+                 verbose=False,
+                 capture_messages=False,
+                 yield_messages=False,
+                 eager=False,
+                 **kw):
         '''
         verbose: include routing_key and headers
-        messages: include the underlying messages
+        capture_messages: include the underlying messages
+        yield_messages: yield both messages and objects
+        eager: yield object *before* it had completed its lifecycle.
         '''
         messages.__init__(self, **kw)
         self.verbose = verbose
@@ -136,43 +154,30 @@ class objects(messages):
             if not collated:
                 # Capture headers/rkey once. Assume they do not change
                 # during the live of the object.
-                collated = dict(object=obj,
-                                headers=message.headers,
-                                rkey=message.rkey)
+                collated = CObject(object=obj,
+                                   headers=message.headers,
+                                   rkey=message.rkey)
                 collated['start'] = strtime(mobj['time_out'])
                 if status == 'born':
                     self.db[obj_id] = collated
             else:
                 collated['object'].update(obj)
+            if self.eager and self.yield_messages:
+                # Otherwise you'd have nothing to iterate over.
+                # Must yield messages to drive the event loop.
+                yield collated if self.verbose else collated['object']
             if self.capture_messages:
                 collated.setdefault('messages', []).append(message)
+            if self.yield_messages:
+                yield message
             if obj_id in self.db and mobj.get('status', None) in ('finished', 'transient'):
                 collated['elapsed'] = mobj.get('elapsed', None)
                 collated['id'] = obj_id
                 collated['end'] = strtime(mobj['time_out'])
 
-                yield collated if self.verbose else collated['object']
+                if not (self.eager and self.yield_messages):
+                    yield collated if self.verbose else collated['object']
                 del self.db[obj_id]
-
-
-class LiveObject(object):
-    pass
-
-
-class liveobjects(messages):
-    '''
-    prototype
-
-    Like objects(), but the objects are "live":
-    - object is returned as soon as it is "born"
-    - fields update as soon as message is received
-    - field update events are hookable
-
-    The blocking consumer is fine for "passive" objects.
-    For publishing this needs to be done asynchronously.
-    '''
-
-    # def __init__(self, ttl)
 
 
 def monitor_cmd():
