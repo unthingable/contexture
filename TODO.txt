@@ -1,0 +1,7 @@
+TODOs for 1.0 release:
+
+== Separate processor from context
+
+== Add standalone mode for testing
+
+Via a dummy queue backend.
