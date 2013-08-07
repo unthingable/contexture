@@ -197,7 +197,10 @@ class Context(object):
         status = transient and 'transient' or 'born'
         self._update(meta=dict(status=status), context=context)
 
-    def _update(self, msg=[], level=logging.DEBUG, context={}, meta={}):
+    def _update(self, msg=[], level=logging.DEBUG, context={}, meta={}, format=True):
+        '''
+        Logger-like behavior
+        '''
         self.context.update(context)
         obj = {}
         for k, v in context.iteritems():
@@ -211,11 +214,15 @@ class Context(object):
             return
 
         if msg:
-            if len(msg):
+            if len(msg) > 1:
                 msg = msg[0] % msg[1:]
             else:
                 msg = msg[0]
-            msg = msg.format(**self.context)
+            if format:
+                try:
+                    msg = msg.format(**self.context)
+                except Exception, e:
+                    pass
         else:
             msg = None
 
