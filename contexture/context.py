@@ -38,7 +38,8 @@ config = {
 
 # primitive config prototype
 def configure(backend=backend.amqp.AMQPHandler,
-              args=("amqp://guest:guest@localhost:5672/%2F", "lc-topic", "topic"),
+              # args=("amqp://guest:guest@localhost:5672/%2F", "lc-topic", "topic"),
+              args=[],
               kwargs={}):
     '''
     Explicitly configure contexture with a handler.

@@ -43,14 +43,26 @@ class AMQPHandler(logging.Handler):
     _channel = None
     _connection = None
 
-    def __init__(self, url,
+    def __init__(self, url=None,
                  exchange='lc-topic',
                  exchange_type='topic',
+                 user='guest',
+                 password='guest',
+                 host='localhost',
+                 port=5672,
+                 virtual_host='/',
                  headers={},
                  singleton=True,
                  maxqueue=300,
                  reconnect_wait=10):
-        self._url = url
+        if url:
+            self._conn_params = pika.URLParameters(url)
+        else:
+            creds = pika.credentials.PlainCredentials(user, password)
+            self._conn_params = pika.ConnectionParameters(host=host,
+                                                          port=port,
+                                                          virtual_host=virtual_host,
+                                                          credentials=creds)
         self._exchange = exchange
         self._headers = headers
         self._type = exchange_type
@@ -84,7 +96,7 @@ class AMQPHandler(logging.Handler):
         logging.Handler.__init__(self)
 
     def connect(self):
-        return pika.SelectConnection(pika.URLParameters(self._url),
+        return pika.SelectConnection(self._conn_params,
                                      self.on_connection_open)
 
     def on_connection_closed(self, method_frame, *args):
