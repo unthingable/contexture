@@ -3,6 +3,10 @@
 History
 -------
 
+0.10.3 (2013-08-08)
++++++++++++++++++++
+- Fix objects() iterator
+
 0.10.2 (2013-08-07)
 +++++++++++++++++++
 - configure() now takes parameters in addition to URL string.

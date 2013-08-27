@@ -141,6 +141,9 @@ class Context(object):
                  silent=False,      # for using LC from SH
                  transient=False,   # transient object
                  wait=None,         # for handler queue to empty (t/f/none)
+                                    # (None uses configuration, t/f overrides)
+
+                 on_exit=None,      # exit callback
                  ):
         self.context = {}
         self._ = _dummy_obj()

@@ -127,8 +127,8 @@ class objects(messages):
     def __init__(self,
                  verbose=False,
                  capture_messages=False,
-                 yield_messages=False,
-                 eager=False,
+                 yield_messages=False,  # experimental
+                 eager=False,           # experimental
                  **kw):
         '''
         verbose: include routing_key and headers
@@ -139,6 +139,8 @@ class objects(messages):
         messages.__init__(self, **kw)
         self.verbose = verbose
         self.capture_messages = capture_messages
+        self.eager = eager
+        self.yield_messages = yield_messages
         self.db = {}
 
     def __iter__(self):

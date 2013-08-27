@@ -212,7 +212,7 @@ Provide your own logger instance and Contexture will log context changes to a lo
 
 ```python
 ctx = Context(logger=logging.getLogger(__name__))    # <name> <id>: status = born
-ctx.update(x=1, y=2)                                        # <name> <id>: x = 1, y = 2
+ctx.update(x=1, y=2)                                 # <name> <id>: x = 1, y = 2
 ```
 
 Note that this will work even without an AMQP handler configured.
@@ -231,12 +231,13 @@ No.
 
 Inside the handler, your messages are buffered in a queue and picked up by a publisher thread every second. If the publisher cannot publish to the RabbitMQ server, it will stop publishing, the queue will fill up and the new messages will be discarded. The backend will keep trying to reconnect and things will return to normal once it does.
 
-This means LC can survive some broker downtime with no loss of traffic. How long — depends on your message rates and the size of the queue (currently 5000 but we can make this configurable).
+This means Contexture can survive some broker downtime with no loss of traffic. How long — depends on your message rates and the size of the queue (currently 5000 but we can make this configurable).
 
-### Patience
+### Clean exit
 
-To ensure all emitted messages make it to the broker, `time.sleep(2)` before
-exiting your program.
+It is possible to ensure the context transmits all of its messages before the process exits. Declare your context with ``wait=True`` and it will block on exit until the publish queue is empty.
+
+The old way was to call `time.sleep(2)` before exiting your program, that still works.
 
 ### Unicode headers
 
