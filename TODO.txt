@@ -5,3 +5,18 @@ TODOs for 1.0 release:
 == Add standalone mode for testing
 
 Via a dummy queue backend.
+
+== Lazy contexts: simple log function
+
+To be called from anywhere
+
+== gevent support?
+
+== History support
+Tell contexture which attributes to keep history for.
+
+== attr del
+
+== "persisted" objects (like "transient" but always alive)
+- persisted objects never die
+- can query for persisted object state

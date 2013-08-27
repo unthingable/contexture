@@ -3,6 +3,14 @@
 History
 -------
 
+0.10.2 (2013-08-07)
++++++++++++++++++++
+- configure() now takes parameters in addition to URL string.
+
+0.10.1 (2013-08-06)
++++++++++++++++++++
+- A new ``format`` argument for Context._update(). When ``False`` it will not attempt to process curly braces by calling .format() on the message string.
+
 0.10.0 (2013-08-01)
 +++++++++++++++++++
 - Add non-logging based configuration (context.configure()), to get around logger hijacking (I'm looking at you, celery)
