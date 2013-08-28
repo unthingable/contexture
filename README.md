@@ -534,8 +534,8 @@ and/or headers to filter messages.
 ## What's wrong with direct coupling?
 
 1. Producer -> consumer dependency: the consumer must be up and runnning, and be able to consume messages fast enough.
-1. Producer <- consumer dependency: the producer is responsible for knowing how to talk to the consumer and for maintaining an open channel.
-1. Ccomplex systems and intercepting streams: adding multiple consumers and/or producers is a challenge, as is reloading individual components in long running processes.
+1. Consumer -> producer dependency: the producer is responsible for knowing how to talk to the consumer and for maintaining an open channel.
+1. Complex systems and intercepting streams: adding multiple consumers and/or producers is a challenge, as is reloading individual components in long running processes.
 
 These problems can be addressed by implementing plumbing in all of your components or by using a buffered message queue to connect them.
 
