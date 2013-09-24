@@ -201,7 +201,12 @@ class Context(object):
         status = transient and 'transient' or 'born'
         self._update(meta=dict(status=status), context=context)
 
-    def _update(self, msg=[], level=logging.DEBUG, context={}, meta={}, format=True):
+    def _update(self,
+                msg=[],
+                level=logging.DEBUG,
+                context={},
+                meta={},
+                format=True):
         '''
         Logger-like behavior
         '''
@@ -255,8 +260,9 @@ class Context(object):
         return self._update(context=kw)
 
     def __setattr__(self, name, value):
-        if hasattr(Context, name):
+        if hasattr(self.__class__, name):
             if getattr(self, name) is None:
+                # make assignments work (need this in init)
                 object.__setattr__(self, name, value)
             else:
                 raise AttributeError("Attribute '%s' is reserved"
@@ -280,6 +286,22 @@ class Context(object):
                 return getattr(self._.obj, name)
             raise AttributeError
         return self.context[name]
+
+    def __delattr__(self, name):
+        if not hasattr(self, 'context'):
+            raise Exception("Context not initialized, call __init__()!")
+        if hasattr(Context, name):
+            raise AttributeError("Attribute '%s' is reserved:"
+                                 " cannot delete" % name)
+        if name in self.context:
+            del self.context[name]
+        else:
+            if self._.obj:
+                delattr(self._.obj)
+            else:
+                raise AttributeError("'%s' has no attribute '%s'" %
+                                     (self, name))
+        self._update(context={name: None}, meta={'action': 'delete'})
 
     def __str__(self):
         return "%s %s" % (self._.name, self._.guid)
