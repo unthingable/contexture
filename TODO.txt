@@ -15,8 +15,32 @@ To be called from anywhere
 == History support
 Tell contexture which attributes to keep history for.
 
-== attr del
-
 == "persisted" objects (like "transient" but always alive)
-- persisted objects never die
-- can query for persisted object state
+* persisted objects never die
+* can query for persisted object state
+* need a talkback channel
+
+== Multilevel nestable contexts?
+
+a structured data stream can be arbitrarily aggregated; temporal grouping.
+Currently grouping is at the level of a single context.
+
+aggregate "snapshots"
+prevent lost state
+
+This is a straight path into a distributed streaming object database.
+for "small" data
+
+nested transactions?
+way to annotate and aggregate by events
+
+== custom attribute serializers?
+
+
+
+
+= Done
+
+== attr del
+This reqiures additional metadata in the message.
+* add "action" argument

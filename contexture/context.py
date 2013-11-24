@@ -90,6 +90,10 @@ def push_to_backend(obj, level=None):
         backend_logger.log(level, obj)
 
 
+def push_quad(entity, attribute, value, action=None):
+    pass
+
+
 # to be used by itself _and_ extended
 class Context(object):
     '''
@@ -130,8 +134,8 @@ class Context(object):
                  # Common configuration
                  name=None,         # amqp routing key
                  routing_key=None,  # leave empty to use name
-                 headers={},        # amqp headers
-                 context={},        # initial context
+                 headers=None,      # amqp headers
+                 context=None,      # initial context
                  ignore=[],         # exclude from handling
                  logger=None,       # custom logger
                  guid=None,         # provide your own ID
@@ -147,7 +151,7 @@ class Context(object):
                  ):
         self.context = {}
         self._ = _dummy_obj()
-        self._.headers = headers
+        self._.headers = headers or {}
         self._.silent = silent
         self._.guid = guid or str(uuid.uuid4())
         self._.ignore = tuple(ignore)

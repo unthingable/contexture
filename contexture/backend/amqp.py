@@ -321,6 +321,7 @@ class AMQPHandler(logging.Handler):
 
         headers = self._headers.copy()
         headers.update(obj.pop('headers', {}))
+
         # What happends if destination is None?
         destination = obj.pop('routing_key', 'default')
         exchange = obj.pop('exchange', self._exchange)

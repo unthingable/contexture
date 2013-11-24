@@ -219,7 +219,11 @@ Note that this will work even without an AMQP handler configured.
 
 ## Usage notes
 
-Data must be JSON serializeable.
+Data must be JSON serializeable. The entire context entity must fit into JSON.
+
+### Can't we give an attribute a serializer?
+
+
 
 ### pika.exceptions.AMQPConnectionError
 
