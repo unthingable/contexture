@@ -2,5 +2,6 @@ argparse==1.2.1
 mock
 nose==1.2.1
 pika>=0.9.9
+puka
 simplejson
 wsgiref==0.1.2

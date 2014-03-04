@@ -1,4 +1,5 @@
 # backwards compatibility
 
 import amqp
-amqp_handler = amqp
+import amqp_puka
+amqp_handler = amqp_puka

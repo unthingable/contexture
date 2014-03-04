@@ -335,8 +335,8 @@ class AMQPHandler(logging.Handler):
             message = json.dumps(dict(error=repr(e)))
 
         if self._channel.is_open:
-            self._channel.basic_publish(exchange, destination,
-                                        message, properties)
+            return self._channel.basic_publish(exchange, destination,
+                                               message, properties)
         else:
             LOGGER.debug('Discarding %s', message)
 

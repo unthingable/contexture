@@ -37,7 +37,7 @@ config = {
 
 
 # primitive config prototype
-def configure(backend=backend.amqp.AMQPHandler,
+def configure(backend=backend.amqp_puka.AMQPHandler,
               # args=("amqp://guest:guest@localhost:5672/%2F", "lc-topic", "topic"),
               args=[],
               kwargs={}):
@@ -49,6 +49,7 @@ def configure(backend=backend.amqp.AMQPHandler,
     global backend_handler
     backend_handler = backend(*args, **kwargs)
     config.update({k: v for k, v in kwargs.iteritems() if k in config})
+    logging.basicConfig()
 
 
 def _safe_logger():
@@ -203,7 +204,7 @@ class Context(object):
         self.log = self.LogProxy(self)
 
         status = transient and 'transient' or 'born'
-        self._update(meta=dict(status=status), context=context)
+        self._update(meta=dict(status=status))
 
     def _update(self,
                 msg=[],
