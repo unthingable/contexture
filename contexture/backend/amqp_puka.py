@@ -95,6 +95,7 @@ class AMQPHandler(logging.Handler):
             target._queue = Queue(maxqueue)
             target._thread = threading.Thread(target=self.run)
         # if not target._thread.is_active():
+            LOGGER.debug('Starting daemonized thread')
             target._thread.daemon = True
             target._thread.start()
 
@@ -198,19 +199,24 @@ class AMQPHandler(logging.Handler):
                     self._client.loop(timeout=1.0)
                     self._client.loop_break()
             except Exception, e:
-                LOGGER.info('Sleeping for %s seconds and retrying'
-                            % self._reconnect_wait)
-                # LOGGER.exception(e)
-                self._running = False
-                time.sleep(self._reconnect_wait)
+                if self._reconnect_wait:
+                    LOGGER.info('Sleeping for %s seconds and retrying'
+                                % self._reconnect_wait)
+                    # LOGGER.exception(e)
+                    self._running = False
+                    time.sleep(self._reconnect_wait)
+                else:
+                    LOGGER.debug("No reconnect, KTHXBAI")
 
     def stop(self):
         LOGGER.debug("Stopping client loop")
         self.emit_obj({"stopping": True})
-        self._running = False
-        self._client.loop_break()
-        promise = self._client.close()
-        self._client.wait(promise)
+        if self._running:
+            self._running = False
+            if self._client:
+                self._client.loop_break()
+                promise = self._client.close()
+                self._client.wait(promise)
 
     def __del__(self):
         self.close()
