@@ -108,6 +108,7 @@ class Context(object):
     context = None
     log = None
     _ = None    # for keeping stuff out of main namespace
+    _cnt = 0
 
     class LogProxy(object):
         def __init__(self, ctx):
@@ -150,6 +151,8 @@ class Context(object):
 
                  on_exit=None,      # exit callback
                  ):
+        Context._cnt += 1
+
         self.context = {}
         self._ = _dummy_obj()
         self._.headers = headers or {}
@@ -321,8 +324,9 @@ class Context(object):
         if self._ and not self._.deleted and not self._.transient:
             # Calling self.update will resurrect us in the middle
             # of dying, causing a loop of death. So, only die once.
+            Context._cnt -= 1
             self._.deleted = True
             self._update(meta=dict(status="finished",
                                    elapsed=(time() - self._.created_at)))
-            if self._.wait:
-                backend_handler._queue.join()
+            if self._.wait and Context._cnt < 1:
+                backend_handler.queue_join()

@@ -168,7 +168,7 @@ class AMQPHandler(logging.Handler):
         return batch, promise
 
     def schedule_burst(self, t, result):
-        while True:
+        while True and self._running:
             batch, promise = self.publish_items()
             if batch:
                 LOGGER.debug("Purging %s queue items (promise %s)", batch, promise)
@@ -182,6 +182,7 @@ class AMQPHandler(logging.Handler):
                 break
 
     def on_connect(self, t, result):
+        LOGGER.debug("Declaring exchange %s", self._exchange)
         self._client.exchange_declare(exchange=self._exchange,
                                       type=self._type,
                                       durable=True,
@@ -196,10 +197,7 @@ class AMQPHandler(logging.Handler):
                 # self._client.set_callback(promise, self.schedule_burst)
                 LOGGER.debug("Starting client loop")
                 self._client.loop()
-
-                promise = self._client.close()
-                self._client.wait(promise)
-                    # self._client.loop_break()
+                LOGGER.debug("Client loop stopped.")
             except Exception, e:
                 if self._reconnect_wait:
                     LOGGER.info('Sleeping for %s seconds and retrying'
@@ -210,13 +208,15 @@ class AMQPHandler(logging.Handler):
                 else:
                     LOGGER.debug("No reconnect, KTHXBAI")
 
+    def queue_join(self):
+        if self._running:
+            self._queue.join()
+
     def stop(self):
-        LOGGER.debug("Stopping client loop")
         self.emit_obj({"stopping": True})
         if self._running:
             self._running = False
-            if self._client:
-                self._client.loop_break()
+            LOGGER.debug("running = False")
 
     def __del__(self):
         self.close()
