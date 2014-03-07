@@ -15,7 +15,7 @@ import uuid
 
 # Don't make this __name__. Used by logging config to wire amqp handler.
 LOGGER = logging.getLogger('contexture.internal')
-LOGGER.setLevel(logging.INFO)
+# LOGGER.setLevel(logging.DEBUG)
 LOGGER.debug("LOGGER.debug works")
 
 
@@ -195,9 +195,11 @@ class AMQPHandler(logging.Handler):
                 self._client.connect(callback=self.on_connect)
                 # self._client.set_callback(promise, self.schedule_burst)
                 LOGGER.debug("Starting client loop")
-                while True:
-                    self._client.loop(timeout=1.0)
-                    self._client.loop_break()
+                self._client.loop()
+
+                promise = self._client.close()
+                self._client.wait(promise)
+                    # self._client.loop_break()
             except Exception, e:
                 if self._reconnect_wait:
                     LOGGER.info('Sleeping for %s seconds and retrying'
@@ -215,8 +217,6 @@ class AMQPHandler(logging.Handler):
             self._running = False
             if self._client:
                 self._client.loop_break()
-                promise = self._client.close()
-                self._client.wait(promise)
 
     def __del__(self):
         self.close()
